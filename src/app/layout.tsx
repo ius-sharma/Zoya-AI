@@ -1,21 +1,29 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-dm-sans',
+  display: 'swap',
+});
+
+const instrumentSerif = Instrument_Serif({
+  weight: '400',
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  variable: '--font-serif-display',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Zoya AI — Next Generation Voice & Text Chatbot',
+  title: 'Zoya AI — Intelligent Voice & Text Assistant',
   description:
-    'Near-black dark UI conversational AI featuring interactive Web Audio particle orb, continuous speech recognition, and instant streaming intelligence.',
+    'Luxury conversational AI featuring interactive voice orb, continuous speech recognition, and instant streaming intelligence.',
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+  themeColor: '#FAF6F0',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -28,8 +36,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable}`}>
-      <body className="bg-[#0a0a0a] text-gray-100 antialiased min-h-screen selection:bg-orange-500/30 selection:text-white">
+    <html lang="en" className={`${dmSans.variable} ${instrumentSerif.variable}`}>
+      <body className="bg-[#FAF6F0] text-[#292524] font-sans antialiased min-h-screen">
         {children}
       </body>
     </html>

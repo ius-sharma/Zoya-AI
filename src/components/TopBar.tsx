@@ -31,8 +31,8 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-1.5 px-2.5 py-1 text-base font-semibold text-[#292524] hover:bg-[#F5EBE0]/60 rounded-lg transition-colors group"
           >
-            <span className="bg-gradient-to-r from-[#7C3512] via-[#9C4A1A] to-[#B85D19] bg-clip-text text-transparent font-bold tracking-tight text-lg">
-              Zoya.AI
+            <span className="font-serif italic font-bold tracking-wide text-2xl bg-gradient-to-r from-[#7C3512] via-[#9C4A1A] to-[#B85D19] bg-clip-text text-transparent">
+              Zoya
             </span>
             <ChevronDown className="w-4 h-4 text-[#786A5E] group-hover:text-[#292524] transition-transform duration-200" />
           </button>
