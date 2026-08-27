@@ -55,3 +55,17 @@ body {
   background: rgba(156, 74, 26, 0.25);
   color: #5C260B;
 }
+
+/* Remove all harsh default browser focus rectangles & outlines */
+textarea, input, button {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+textarea:focus,
+textarea:focus-visible,
+input:focus,
+input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

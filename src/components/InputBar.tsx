@@ -71,7 +71,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
             disabled={disabled}
             placeholder={ROTATING_PLACEHOLDERS[placeholderIndex]}
             rows={1}
-            className="w-full max-h-36 min-h-[28px] bg-transparent text-[#292524] placeholder-[#A89F91] text-sm sm:text-base resize-none focus:outline-none leading-relaxed transition-all"
+            className="w-full max-h-36 min-h-[28px] bg-transparent text-[#292524] placeholder-[#A89F91] text-sm sm:text-base resize-none outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none caret-[#9C4A1A] leading-relaxed transition-all"
           />
         </div>
 
