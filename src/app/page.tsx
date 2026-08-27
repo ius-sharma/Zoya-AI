@@ -11,15 +11,15 @@ function MainApp() {
   const { voiceState } = useChat();
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0a] text-white flex flex-col overflow-hidden">
-      {/* Screen 1: Main Chat View */}
+    <div className="h-[100dvh] max-h-[100dvh] w-full bg-[#FAF6F0] text-[#292524] flex flex-col overflow-hidden fixed inset-0">
+      {/* Top Bar (Permanently pinned at top, never scrolls) */}
       <TopBar />
       <Sidebar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <ChatView />
       </main>
 
-      {/* Screen 2: Voice Mode (The Hero Screen Takeover) */}
+      {/* Voice Mode Takeover */}
       {voiceState.isOpen && <VoiceModeScreen />}
     </div>
   );

@@ -226,11 +226,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       setIsStreaming(true);
 
-      // Collect payload
-      const historyToSend = [...targetConvo.messages, userMessage].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      // Collect payload (strictly non-empty messages for LLM compatibility)
+      const historyToSend = [...targetConvo.messages, userMessage]
+        .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
+        .map((m) => ({
+          role: m.role,
+          content: m.content.trim(),
+        }));
 
       try {
         const response = await fetch('/api/chat', {

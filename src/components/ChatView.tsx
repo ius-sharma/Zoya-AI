@@ -8,20 +8,26 @@ import { useChat } from '@/context/ChatContext';
 export const ChatView: React.FC = () => {
   const { activeConversation, sendMessage, isStreaming } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [greetingText, setGreetingText] = useState<string>('Welcome, Ayush');
 
   const messages = activeConversation?.messages || [];
   const isHeroEmpty = messages.length === 0;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  // Auto-scroll smoothly to bottom on new messages or streaming chunks
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isStreaming]);
+    if (!isHeroEmpty) {
+      scrollToBottom('smooth');
+    }
+  }, [messages.length, messages[messages.length - 1]?.content, isStreaming, isHeroEmpty]);
 
-  // Compute rotational dynamic time-aware greeting with user name (Claude / Gemini / Editorial style)
+  // Compute rotational dynamic time-aware greeting with user name
   useEffect(() => {
     let name = 'Ayush';
     if (typeof window !== 'undefined') {
@@ -54,24 +60,27 @@ export const ChatView: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-61px)] bg-[#FAF6F0] overflow-hidden relative">
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden relative bg-[#FAF6F0]">
       {/* Subtle warm rust ambient background glow */}
       <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#9C4A1A]/5 blur-[140px] rounded-full" />
 
       {/* Main Dynamic Viewport Container */}
       <div
-        className={`flex-1 flex flex-col w-full h-full transition-all duration-500 ease-out ${
+        className={`flex-1 flex flex-col w-full h-full min-h-0 overflow-hidden transition-all duration-500 ease-out ${
           isHeroEmpty ? 'justify-center items-center pb-8' : 'justify-between'
         }`}
       >
-        {/* 1. Scrollable Messages Area (Active Chat Mode) */}
+        {/* 1. Scrollable Messages Area (Active Chat Mode) - THIS IS THE ONLY SCROLLING ELEMENT */}
         {!isHeroEmpty ? (
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 scrollbar-thin scrollbar-thumb-stone-300 w-full animate-in fade-in duration-300">
-            <div className="max-w-3xl mx-auto min-h-full flex flex-col justify-end space-y-2 py-4">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 scrollbar-thin scrollbar-thumb-stone-300 w-full animate-in fade-in duration-300"
+          >
+            <div className="max-w-3xl mx-auto space-y-3 pb-4 pt-2">
               {messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
               ))}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-2" />
             </div>
           </div>
         ) : null}
@@ -85,12 +94,12 @@ export const ChatView: React.FC = () => {
           </div>
         ) : null}
 
-        {/* 3. Input Unit (Centered in empty state, anchored at bottom in active chat) */}
+        {/* 3. Input Unit (Centered in empty state, permanently docked at bottom in active chat) */}
         <div
-          className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-out ${
+          className={`shrink-0 w-full z-20 transition-all duration-500 ease-out ${
             isHeroEmpty
-              ? 'px-3 sm:px-4'
-              : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 to-transparent pt-2'
+              ? 'max-w-3xl mx-auto px-3 sm:px-4'
+              : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 to-transparent pt-2 pb-1'
           }`}
         >
           <InputBar onSendMessage={handleSend} disabled={isStreaming} />

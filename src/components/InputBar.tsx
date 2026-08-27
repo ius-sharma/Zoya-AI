@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, ArrowUp, Globe, Brain, Paperclip } from 'lucide-react';
+import { Mic, ArrowUp, Paperclip } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface InputBarProps {
@@ -10,17 +10,37 @@ interface InputBarProps {
 }
 
 const ROTATING_PLACEHOLDERS = [
-  'Ask Zoya anything...',
-  'Brainstorm novel concepts...',
-  'Analyze, code, or draft...',
-  'Explore deep thoughts with Zoya...',
+  'Chat with Zoya...',
+  'Tell me anything, bestie...',
+  'Ask for advice, jokes, or help...',
+  'Share what is on your mind...',
 ];
 
 export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = false }) => {
-  const { mode, toggleDeepSearch, toggleThink, openVoiceMode, isStreaming } = useChat();
+  const { openVoiceMode, isStreaming, activeId } = useChat();
   const [input, setInput] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const prevStreamingRef = useRef<boolean>(isStreaming);
+
+  // Auto-focus textarea on mount or when switching/creating chats
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth > 768) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 80);
+    }
+  }, [activeId]);
+
+  // Auto-focus textarea automatically as soon as AI finishes streaming/responding
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 50);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming]);
 
   // Rotate silky placeholder hints smoothly when input is empty
   useEffect(() => {
@@ -44,6 +64,8 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
     setInput('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
+      // Retain focus seamlessly
+      textareaRef.current.focus();
     }
   };
 
@@ -61,7 +83,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 pb-4 pt-0.5">
       {/* Outer Atelier Silk Capsule */}
       <div className="relative rounded-[26px] bg-[#FFFFFF] border border-[#E8D8C8] shadow-lg shadow-stone-300/35 focus-within:border-[#B85D19]/40 focus-within:ring-2 focus-within:ring-[#B85D19]/15 transition-all duration-300 overflow-hidden">
-        {/* Upper Area: Compact Textarea with Silky Typography */}
+        {/* Upper Area: Textarea with Silky Typography */}
         <div className="px-4 pt-3 pb-0">
           <textarea
             ref={textareaRef}
@@ -75,11 +97,10 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
           />
         </div>
 
-        {/* Bottom Integrated Dock (Compact Tight Spacing) */}
-        <div className="flex items-center justify-between px-3.5 pb-2.5 pt-0.5">
-          {/* Left Dock: Tools & Intelligence Modes */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Attachment Button */}
+        {/* Bottom Integrated Dock */}
+        <div className="flex items-center justify-between px-3.5 pb-2.5 pt-1">
+          {/* Left: Attachment Button */}
+          <div className="flex items-center gap-1">
             <button
               type="button"
               className="flex items-center justify-center w-7 h-7 rounded-full text-[#8C7A6B] hover:text-[#292524] hover:bg-[#FAF6F0] transition-colors"
@@ -87,34 +108,6 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
               aria-label="Attach file"
             >
               <Paperclip className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Deep Search Toggle in Light Soft Amber */}
-            <button
-              type="button"
-              onClick={toggleDeepSearch}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                mode.deepSearch
-                  ? 'bg-[#FAF0E6] text-[#9C4A1A] border border-[#E8D0BE] shadow-xs'
-                  : 'text-[#8C7A6B] hover:text-[#292524] hover:bg-[#FAF6F0] border border-transparent'
-              }`}
-            >
-              <Globe className="w-3 h-3" />
-              <span>Deep Search</span>
-            </button>
-
-            {/* Think Reasoning Toggle in Light Soft Caramel */}
-            <button
-              type="button"
-              onClick={toggleThink}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
-                mode.think
-                  ? 'bg-[#FEF6EE] text-[#B85D19] border border-[#F0D8C4] shadow-xs'
-                  : 'text-[#8C7A6B] hover:text-[#292524] hover:bg-[#FAF6F0] border border-transparent'
-              }`}
-            >
-              <Brain className="w-3 h-3" />
-              <span>Think</span>
             </button>
           </div>
 
@@ -214,7 +207,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
       {/* Subtle branding hint */}
       <div className="text-center pt-1.5">
         <span className="text-[11px] text-[#8C7A6B]">
-          Zoya can make mistakes. Verify important information.
+          Zoya is your AI best friend. Verify important facts.
         </span>
       </div>
     </div>
