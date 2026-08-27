@@ -26,7 +26,7 @@ const CHIPS: QuickChip[] = [
     id: 'image',
     label: 'Image',
     iconName: 'ImageIcon',
-    prompt: 'Describe a cinematic futuristic neon metropolis with amber lighting accents.',
+    prompt: 'Describe a cinematic scene with luxurious warm satin cream and rich rust brown fabrics.',
   },
   {
     id: 'code',
@@ -46,17 +46,17 @@ export const QuickChips: React.FC<QuickChipsProps> = ({ onSelectChip, disabled =
   const getIcon = (id: string) => {
     switch (id) {
       case 'analyse':
-        return <BarChart3 className="w-3.5 h-3.5 text-orange-400" />;
+        return <BarChart3 className="w-3.5 h-3.5 text-[#9C4A1A]" />;
       case 'summaries':
-        return <FileText className="w-3.5 h-3.5 text-amber-400" />;
+        return <FileText className="w-3.5 h-3.5 text-[#D97706]" />;
       case 'image':
-        return <ImageIcon className="w-3.5 h-3.5 text-yellow-400" />;
+        return <ImageIcon className="w-3.5 h-3.5 text-[#7C3512]" />;
       case 'code':
-        return <Code className="w-3.5 h-3.5 text-orange-300" />;
+        return <Code className="w-3.5 h-3.5 text-[#B85D19]" />;
       case 'brainstorm':
-        return <Lightbulb className="w-3.5 h-3.5 text-amber-300" />;
+        return <Lightbulb className="w-3.5 h-3.5 text-[#9C4A1A]" />;
       default:
-        return <HelpCircle className="w-3.5 h-3.5 text-gray-400" />;
+        return <HelpCircle className="w-3.5 h-3.5 text-[#786A5E]" />;
     }
   };
 
@@ -67,7 +67,7 @@ export const QuickChips: React.FC<QuickChipsProps> = ({ onSelectChip, disabled =
           key={chip.id}
           disabled={disabled}
           onClick={() => onSelectChip(chip)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#171717] hover:bg-[#222222] border border-white/[0.07] hover:border-orange-500/30 text-xs font-medium text-gray-300 hover:text-white transition-all shrink-0 hover:shadow-md hover:shadow-orange-500/5 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#FFFFFF] hover:bg-[#F5EBE0] border border-[#E8D8C8] hover:border-[#9C4A1A]/40 text-xs font-semibold text-[#574E45] hover:text-[#292524] transition-all shrink-0 shadow-sm shadow-stone-200/50 hover:shadow-md hover:shadow-[#9C4A1A]/10 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
         >
           {getIcon(chip.id)}
           <span>{chip.label}</span>

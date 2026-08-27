@@ -9,36 +9,46 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "#0a0a0a",
+        background: "#FAF6F0",
+        foreground: "#292524",
         surface: {
-          50: "#171717",
-          100: "#1a1a1a",
-          200: "#222222",
-          300: "#2a2a2a",
+          50: "#FFFFFF",
+          100: "#FDFBF7",
+          200: "#F5EBE0",
+          300: "#EFE6DD",
+          400: "#E8D8C8",
+        },
+        rust: {
+          400: "#D97706",
+          500: "#B85D19",
+          600: "#9C4A1A",
+          700: "#7C3512",
+          800: "#5C260B",
+        },
+        cream: {
+          50: "#FFFFFF",
+          100: "#FDFBF7",
+          200: "#FAF6F0",
+          300: "#F5EBE0",
+          400: "#EFE6DD",
+          500: "#E8D8C8",
+          600: "#D4C5B9",
         },
         brand: {
-          orange: "#f97316",
-          amber: "#ff6b1a",
-          glow: "rgba(249, 115, 22, 0.2)",
-          darkGlow: "rgba(249, 115, 22, 0.08)",
+          rust: "#9C4A1A",
+          darkRust: "#7C3512",
+          lightRust: "#B85D19",
+          terracotta: "#C25E1A",
+          cream: "#FAF6F0",
+          silk: "#FDFBF7",
         },
         muted: {
-          foreground: "#9ca3af",
-        }
+          foreground: "#786A5E",
+        },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
       },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'ambient-glow': 'glow 4s ease-in-out infinite alternate',
-      },
-      keyframes: {
-        glow: {
-          '0%': { opacity: '0.3', transform: 'scale(0.98)' },
-          '100%': { opacity: '0.7', transform: 'scale(1.02)' },
-        }
-      }
     },
   },
   plugins: [],

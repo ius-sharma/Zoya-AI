@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Mic, ArrowUp, Globe, Brain, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Mic, ArrowUp, Globe, Brain } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface InputBarProps {
@@ -32,7 +32,6 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    // Auto-expand up to 140px
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
@@ -41,18 +40,18 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
   return (
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 pb-4 pt-1">
-      {/* Outer rounded pill container */}
-      <div className="relative rounded-3xl bg-[#141414] border border-white/[0.08] shadow-2xl shadow-black/80 focus-within:border-orange-500/40 focus-within:ring-1 focus-within:ring-orange-500/30 transition-all">
+      {/* Outer rounded pill container in Pure Silk Cream */}
+      <div className="relative rounded-3xl bg-[#FFFFFF] border border-[#E8D8C8] shadow-xl shadow-stone-300/40 focus-within:border-[#9C4A1A] focus-within:ring-1 focus-within:ring-[#9C4A1A]/30 transition-all">
         {/* Top bar inside input: Mode Toggles */}
         <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1">
           {/* Deep Search Toggle */}
           <button
             type="button"
             onClick={toggleDeepSearch}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
               mode.deepSearch
-                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 shadow-sm shadow-orange-500/10'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border border-transparent'
+                ? 'bg-[#9C4A1A]/10 text-[#7C3512] border border-[#9C4A1A]/35 shadow-sm'
+                : 'text-[#786A5E] hover:text-[#292524] hover:bg-[#F5EBE0] border border-transparent'
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
@@ -63,10 +62,10 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
           <button
             type="button"
             onClick={toggleThink}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
               mode.think
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border border-transparent'
+                ? 'bg-[#D97706]/15 text-[#7C3512] border border-[#D97706]/40 shadow-sm'
+                : 'text-[#786A5E] hover:text-[#292524] hover:bg-[#F5EBE0] border border-transparent'
             }`}
           >
             <Brain className="w-3.5 h-3.5" />
@@ -84,7 +83,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
             disabled={disabled}
             placeholder="Ask anything..."
             rows={1}
-            className="flex-1 max-h-36 min-h-[28px] bg-transparent text-white placeholder-gray-500 text-sm sm:text-base resize-none focus:outline-none px-1 py-1 leading-relaxed"
+            className="flex-1 max-h-36 min-h-[28px] bg-transparent text-[#292524] placeholder-[#A89F91] text-sm sm:text-base resize-none focus:outline-none px-1 py-1 leading-relaxed"
           />
 
           <div className="flex items-center gap-1.5 shrink-0 pb-0.5">
@@ -94,23 +93,23 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
                 type="button"
                 onClick={handleSubmit}
                 disabled={disabled || isStreaming}
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-white text-black hover:bg-gray-200 active:scale-95 transition-all shadow-md"
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-[#9C4A1A] text-white hover:bg-[#7C3512] active:scale-95 transition-all shadow-md shadow-[#9C4A1A]/30 font-bold"
                 aria-label="Send message"
               >
-                <ArrowUp className="w-4 h-4 font-bold" />
+                <ArrowUp className="w-4 h-4 font-bold stroke-[2.5]" />
               </button>
             ) : null}
 
-            {/* Circular Orange Mic Button (switches to Voice Mode) */}
+            {/* Circular Rust Brown Mic Button (switches to Voice Mode) */}
             <button
               type="button"
               onClick={openVoiceMode}
-              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105 active:scale-95 transition-all group"
+              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-[#7C3512] via-[#9C4A1A] to-[#B85D19] hover:from-[#9C4A1A] hover:to-[#C25E1A] text-white shadow-lg shadow-[#9C4A1A]/30 hover:scale-105 active:scale-95 transition-all group"
               aria-label="Switch to Voice Mode"
               title="Enter Voice Mode"
             >
               <Mic className="w-5 h-5 text-white" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-300 ring-2 ring-[#141414] animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#D97706] ring-2 ring-[#FFFFFF] animate-pulse" />
             </button>
           </div>
         </div>
@@ -118,7 +117,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
       {/* Subtle branding hint */}
       <div className="text-center pt-2">
-        <span className="text-[11px] text-gray-500">
+        <span className="text-[11px] text-[#786A5E]">
           Zoya AI can make mistakes. Verify important information.
         </span>
       </div>

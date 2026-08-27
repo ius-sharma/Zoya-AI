@@ -63,21 +63,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const savedActiveId = getStoredActiveId();
 
     if (savedConvos.length > 0) {
-      setConversations(savedConvos);
       if (savedActiveId && savedConvos.some((c) => c.id === savedActiveId)) {
+        setConversations(savedConvos);
         setActiveId(savedActiveId);
       } else {
-        setActiveId(savedConvos[0].id);
+        // Create an active draft session while keeping saved history intact
+        const initialDraft = createNewConversation();
+        setConversations([initialDraft, ...savedConvos]);
+        setActiveId(initialDraft.id);
       }
     } else {
-      const newConvo = createNewConversation();
-      setConversations([newConvo]);
-      setActiveId(newConvo.id);
+      const initialDraft = createNewConversation();
+      setConversations([initialDraft]);
+      setActiveId(initialDraft.id);
     }
     setIsLoaded(true);
   }, []);
 
-  // Save to localStorage on updates
+  // Save only non-empty conversations to localStorage on updates
   useEffect(() => {
     if (!isLoaded) return;
     saveStoredConversations(conversations);
@@ -121,26 +124,41 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createNewChat = useCallback(() => {
+    // Check if the current conversation is already an empty draft
+    const currentActive = conversations.find((c) => c.id === activeId);
+    if (currentActive && (!currentActive.messages || currentActive.messages.length === 0)) {
+      // Already on an empty draft, just close the sidebar
+      setIsSidebarOpen(false);
+      return;
+    }
+
+    // Keep only conversations with messages + create one new fresh draft
+    const nonEmptyOnly = conversations.filter((c) => c && c.messages && c.messages.length > 0);
     const newConvo = createNewConversation();
-    setConversations((prev) => [newConvo, ...prev]);
+    setConversations([newConvo, ...nonEmptyOnly]);
     setActiveId(newConvo.id);
     setIsSidebarOpen(false);
-  }, []);
+  }, [activeId, conversations]);
 
   const selectConversation = useCallback((id: string) => {
+    // When user selects a past conversation, prune any unsent empty drafts
+    setConversations((prev) => {
+      return prev.filter((c) => c.id === id || (c.messages && c.messages.length > 0));
+    });
     setActiveId(id);
     setIsSidebarOpen(false);
   }, []);
 
   const deleteConversation = useCallback((id: string) => {
     setConversations((prev) => {
-      const filtered = prev.filter((c) => c.id !== id);
-      if (filtered.length === 0) {
+      const remaining = prev.filter((c) => c.id !== id);
+      const remainingWithMessages = remaining.filter((c) => c.messages && c.messages.length > 0);
+      if (remainingWithMessages.length === 0) {
         const fresh = createNewConversation();
         setActiveId(fresh.id);
         return [fresh];
       }
-      return filtered;
+      return remaining;
     });
 
     setActiveId((prevId) => {

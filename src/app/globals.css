@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #f3f4f6;
+  --background: #FAF6F0;
+  --foreground: #292524;
 }
 
 body {
@@ -14,7 +14,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom smooth dark scrollbar */
+/* Custom smooth cream & rust scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -25,12 +25,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(156, 74, 26, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(156, 74, 26, 0.45);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -42,16 +42,16 @@ body {
   scrollbar-width: none;
 }
 
-/* Glassmorphism helpers */
+/* Glassmorphism helpers for warm light cream backdrop */
 .glass-panel {
-  background: rgba(23, 23, 23, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(232, 216, 200, 0.8);
 }
 
-/* Smooth selection */
+/* Smooth selection with warm Rust Brown */
 ::selection {
-  background: rgba(249, 115, 22, 0.35);
-  color: #ffffff;
+  background: rgba(156, 74, 26, 0.25);
+  color: #5C260B;
 }

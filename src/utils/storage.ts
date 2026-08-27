@@ -1,4 +1,4 @@
-import { Conversation, Message } from '@/types/chat';
+import { Conversation } from '@/types/chat';
 
 const STORAGE_KEY = 'zoya_ai_conversations_v1';
 const ACTIVE_CONVO_KEY = 'zoya_ai_active_id';
@@ -9,7 +9,9 @@ export function getStoredConversations(): Conversation[] {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return [];
     const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    // Only return conversations that actually contain messages
+    return parsed.filter((c: Conversation) => c && Array.isArray(c.messages) && c.messages.length > 0);
   } catch (err) {
     console.error('Failed to load conversations from localStorage:', err);
     return [];
@@ -19,7 +21,9 @@ export function getStoredConversations(): Conversation[] {
 export function saveStoredConversations(conversations: Conversation[]): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    // Only persist conversations that have at least 1 message
+    const nonEmptyOnly = conversations.filter((c) => c && Array.isArray(c.messages) && c.messages.length > 0);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nonEmptyOnly));
   } catch (err) {
     console.error('Failed to save conversations to localStorage:', err);
   }
@@ -62,7 +66,6 @@ export function generateConversationTitle(firstMessage: string): string {
   const clean = firstMessage.trim().replace(/^["']|["']$/g, '');
   if (!clean) return 'New conversation';
 
-  // If starts with common prefixes, clean them
   const stripped = clean.replace(/^(can you|please|what is|how to|tell me about|explain)\s+/i, '');
   const capitalized = stripped.charAt(0).toUpperCase() + stripped.slice(1);
 
