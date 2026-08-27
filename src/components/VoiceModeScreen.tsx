@@ -183,20 +183,9 @@ export const VoiceModeScreen: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0a] text-white select-none overflow-hidden animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#050505] text-white select-none overflow-hidden animate-in fade-in duration-300">
       {/* Top Bar Takeover */}
       <TopBar isVoiceMode={true} />
-
-      {/* Dynamic Background Violet/Purple Glow from Bottom */}
-      <div
-        className={`pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-[850px] h-[480px] rounded-full blur-[140px] transition-all duration-700 ${
-          status === 'speaking' || status === 'thinking'
-            ? 'bg-gradient-to-t from-purple-600/35 via-violet-600/20 to-transparent scale-110 opacity-90'
-            : status === 'listening' && amplitude > 0.08
-            ? 'bg-gradient-to-t from-purple-600/25 via-fuchsia-600/15 to-transparent scale-100 opacity-70'
-            : 'bg-gradient-to-t from-purple-700/15 via-violet-800/08 to-transparent scale-95 opacity-50'
-        }`}
-      />
 
       {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-4 max-w-4xl mx-auto w-full overflow-visible">
@@ -206,32 +195,34 @@ export const VoiceModeScreen: React.FC = () => {
             <div className="max-w-md px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
               <p className="text-sm sm:text-base font-medium text-gray-200 leading-relaxed">
                 {userTranscript}
-                <span className="text-purple-400 font-semibold">{interimTranscript}</span>
+                <span className="text-amber-400 font-semibold">{interimTranscript}</span>
               </p>
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-ping" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
               <span>Tap the mic or speak naturally</span>
             </div>
           )}
         </div>
 
-        {/* Center: 3D WebGL Glowing Particle Wave Ribbon (Three.js / Shader Reactivity) */}
+        {/* Center: Exact ChatGPT Liquid Gradient Circle */}
         <div className="relative w-full flex flex-col items-center justify-center my-auto px-2 overflow-visible">
           <ParticleOrb
             state={isMuted ? 'idle' : status === 'speaking' ? 'speaking' : status === 'thinking' ? 'thinking' : status === 'listening' ? 'listening' : 'idle'}
             audioLevel={isMuted ? 0 : amplitude}
+            frequencies={frequencies}
+            size={320}
           />
 
-          {/* Status Text Below Wave */}
-          <div className="mt-2 flex items-center gap-2">
+          {/* Status Text Below Circle */}
+          <div className="mt-4 flex items-center gap-2">
             <span
               className={`text-sm font-medium tracking-wide transition-colors ${
                 status === 'speaking'
-                  ? 'text-purple-300 font-semibold animate-pulse'
+                  ? 'text-amber-300 font-semibold animate-pulse'
                   : status === 'thinking'
-                  ? 'text-violet-300'
+                  ? 'text-yellow-200'
                   : 'text-gray-300'
               }`}
             >
@@ -240,7 +231,7 @@ export const VoiceModeScreen: React.FC = () => {
           </div>
 
           {micPermissionDenied && (
-            <div className="mt-2 text-xs text-purple-400/90 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+            <div className="mt-2 text-xs text-amber-400/90 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
               Mic permission needed for real voice. Running in interactive simulator mode.
             </div>
           )}
@@ -249,7 +240,7 @@ export const VoiceModeScreen: React.FC = () => {
         {/* Lower Area: AI Streamed Response Transcript */}
         <div className="w-full flex-1 flex flex-col items-center justify-start pt-4 min-h-[100px] text-center">
           {aiResponseText && (
-            <div className="max-w-lg px-4 py-3 rounded-2xl bg-[#141414]/90 border border-purple-500/25 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="max-w-lg px-4 py-3 rounded-2xl bg-[#141414]/90 border border-amber-500/25 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300">
               <p className="text-xs sm:text-sm text-gray-200 leading-relaxed line-clamp-4">
                 {aiResponseText}
               </p>
@@ -257,7 +248,7 @@ export const VoiceModeScreen: React.FC = () => {
           )}
         </div>
 
-        {/* Bottom Control Row (3 buttons: Keyboard, Large Purple Mic, X) */}
+        {/* Bottom Control Row (3 buttons: Keyboard, Large Amber Mic, X) */}
         <div className="w-full flex items-center justify-center gap-8 pt-6 pb-4">
           {/* 1. Keyboard Icon (Left: Exits back to text chat) */}
           <button
@@ -269,18 +260,18 @@ export const VoiceModeScreen: React.FC = () => {
             <Keyboard className="w-5 h-5" />
           </button>
 
-          {/* 2. Large Purple Mic Button (Center: Tap to mute/pause mic) */}
+          {/* 2. Large Amber Mic Button (Center: Tap to mute/pause mic) */}
           <div className="relative">
             {/* Pulsing ring when active listening */}
             {!isMuted && status === 'listening' && (
-              <span className="absolute -inset-2 rounded-full bg-purple-500/25 animate-ping pointer-events-none" />
+              <span className="absolute -inset-2 rounded-full bg-amber-400/25 animate-ping pointer-events-none" />
             )}
             <button
               onClick={handleToggleMute}
               className={`relative flex items-center justify-center w-16 h-16 rounded-full transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95 ${
                 isMuted
                   ? 'bg-neutral-800 text-gray-400 border border-white/[0.1] shadow-black/50'
-                  : 'bg-gradient-to-tr from-purple-600 via-violet-500 to-fuchsia-500 text-white shadow-purple-500/40 hover:shadow-purple-500/60'
+                  : 'bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 text-white shadow-amber-500/40 hover:shadow-amber-500/60'
               }`}
               title={isMuted ? 'Unmute microphone' : 'Mute / pause microphone'}
               aria-label="Toggle voice listening"

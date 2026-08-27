@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Mic, ArrowUp, Globe, Brain } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Mic, ArrowUp, Globe, Brain, Sparkles } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface InputBarProps {
@@ -32,6 +32,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    // Auto-expand up to 140px
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`;
@@ -40,17 +41,17 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
   return (
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 pb-4 pt-1">
-      {/* Outer rounded pill container with cosmic purple focus ring */}
-      <div className="relative rounded-3xl bg-[#131118] border border-white/[0.08] shadow-2xl shadow-black/80 focus-within:border-purple-500/40 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
+      {/* Outer rounded pill container */}
+      <div className="relative rounded-3xl bg-[#141414] border border-white/[0.08] shadow-2xl shadow-black/80 focus-within:border-orange-500/40 focus-within:ring-1 focus-within:ring-orange-500/30 transition-all">
         {/* Top bar inside input: Mode Toggles */}
         <div className="flex items-center gap-2 px-3.5 pt-2.5 pb-1">
-          {/* Deep Search Toggle (Cyber Cyan / Sapphire Blue) */}
+          {/* Deep Search Toggle */}
           <button
             type="button"
             onClick={toggleDeepSearch}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
               mode.deepSearch
-                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm shadow-sky-500/10'
+                ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40 shadow-sm shadow-orange-500/10'
                 : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border border-transparent'
             }`}
           >
@@ -58,13 +59,13 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
             <span>Deep Search</span>
           </button>
 
-          {/* Think Toggle (Radiant Violet) */}
+          {/* Think Toggle */}
           <button
             type="button"
             onClick={toggleThink}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
               mode.think
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm shadow-purple-500/10'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10'
                 : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04] border border-transparent'
             }`}
           >
@@ -93,23 +94,23 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
                 type="button"
                 onClick={handleSubmit}
                 disabled={disabled || isStreaming}
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-white text-black hover:bg-gray-200 active:scale-95 transition-all shadow-md shadow-purple-500/10"
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-white text-black hover:bg-gray-200 active:scale-95 transition-all shadow-md"
                 aria-label="Send message"
               >
                 <ArrowUp className="w-4 h-4 font-bold" />
               </button>
             ) : null}
 
-            {/* Circular Purple Mic Button (switches to Voice Mode) */}
+            {/* Circular Orange Mic Button (switches to Voice Mode) */}
             <button
               type="button"
               onClick={openVoiceMode}
-              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 via-violet-600 to-fuchsia-500 hover:from-purple-500 hover:to-violet-500 text-white shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 active:scale-95 transition-all group"
+              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-105 active:scale-95 transition-all group"
               aria-label="Switch to Voice Mode"
               title="Enter Voice Mode"
             >
               <Mic className="w-5 h-5 text-white" />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-purple-300 ring-2 ring-[#131118] animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-300 ring-2 ring-[#141414] animate-pulse" />
             </button>
           </div>
         </div>

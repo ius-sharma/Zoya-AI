@@ -28,15 +28,15 @@ export const Sidebar: React.FC = () => {
 
       {/* Sidebar drawer */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 sm:w-80 bg-[#0c0a12] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 sm:w-80 bg-[#0e0e0e] border-r border-white/[0.06] flex flex-col transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-              <Sparkles className="w-4 h-4 text-purple-400" />
+            <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+              <Sparkles className="w-4 h-4 text-orange-400" />
             </div>
             <span className="font-semibold text-sm text-white tracking-tight">Conversations</span>
           </div>
@@ -53,7 +53,7 @@ export const Sidebar: React.FC = () => {
         <div className="p-3">
           <button
             onClick={createNewChat}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white text-sm font-medium rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-sm font-medium rounded-xl shadow-lg shadow-orange-500/10 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             <Plus className="w-4 h-4" />
             <span>New Chat</span>
@@ -62,7 +62,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Previous Conversations Section Header */}
         <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-          <Clock className="w-3 h-3 text-purple-400/80" />
+          <Clock className="w-3 h-3 text-orange-400/80" />
           <span>Previous conversations</span>
         </div>
 
@@ -83,14 +83,14 @@ export const Sidebar: React.FC = () => {
                   onClick={() => selectConversation(convo.id)}
                   className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
                     isActive
-                      ? 'bg-purple-500/15 text-white border border-purple-500/30 shadow-sm shadow-purple-500/10'
+                      ? 'bg-orange-500/15 text-white border border-orange-500/30'
                       : 'text-gray-300 hover:bg-white/[0.04] hover:text-white border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 pr-2">
                     <MessageSquare
                       className={`w-4 h-4 shrink-0 ${
-                        isActive ? 'text-purple-400' : 'text-gray-500 group-hover:text-gray-300'
+                        isActive ? 'text-orange-400' : 'text-gray-500 group-hover:text-gray-300'
                       }`}
                     />
                     <div className="flex flex-col min-w-0">
@@ -120,7 +120,7 @@ export const Sidebar: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/[0.06] bg-[#09080e]">
+        <div className="p-3 border-t border-white/[0.06] bg-[#0c0c0c]">
           <div className="flex items-center justify-between text-[11px] text-gray-500 px-2">
             <span>Zoya AI Core 2.5</span>
             <span className="flex items-center gap-1 text-emerald-400">

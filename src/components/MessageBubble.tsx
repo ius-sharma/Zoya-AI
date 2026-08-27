@@ -25,8 +25,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     if (!content && message.isStreaming) {
       return (
         <div className="flex items-center gap-1.5 text-gray-400 py-1">
-          <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-          <span className="text-xs text-purple-300">Zoya is writing...</span>
+          <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <span className="text-xs">Zoya is writing...</span>
         </div>
       );
     }
@@ -41,17 +41,17 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         if (inCodeBlock) {
           // Close code block
           elements.push(
-            <div key={`code-${index}`} className="my-3 rounded-xl overflow-hidden bg-[#100d16] border border-purple-500/20 shadow-lg shadow-black/40">
+            <div key={`code-${index}`} className="my-3 rounded-xl overflow-hidden bg-[#111111] border border-white/[0.08]">
               <div className="flex items-center justify-between px-3 py-1.5 bg-white/[0.03] border-b border-white/[0.06] text-[11px] text-gray-400 font-mono">
-                <span className="text-purple-300 font-medium">Code snippet</span>
+                <span>Code snippet</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(codeBuffer.join('\n'))}
-                  className="hover:text-white text-gray-400 transition-colors"
+                  className="hover:text-white transition-colors"
                 >
                   Copy
                 </button>
               </div>
-              <pre className="p-3.5 text-xs font-mono text-purple-200 overflow-x-auto">
+              <pre className="p-3.5 text-xs font-mono text-orange-200 overflow-x-auto">
                 <code>{codeBuffer.join('\n')}</code>
               </pre>
             </div>
@@ -77,7 +77,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         );
       } else if (line.startsWith('> ')) {
         elements.push(
-          <blockquote key={index} className="border-l-2 border-purple-500 pl-3 my-2 text-xs text-purple-200/90 italic bg-purple-500/5 py-1 rounded-r">
+          <blockquote key={index} className="border-l-2 border-orange-500 pl-3 my-2 text-xs text-orange-200/90 italic bg-orange-500/5 py-1 rounded-r">
             {line.replace('> ', '')}
           </blockquote>
         );
@@ -106,8 +106,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
     if (inCodeBlock && codeBuffer.length > 0) {
       elements.push(
-        <div key="unclosed-code" className="my-3 rounded-xl overflow-hidden bg-[#100d16] border border-purple-500/20">
-          <pre className="p-3.5 text-xs font-mono text-purple-200 overflow-x-auto">
+        <div key="unclosed-code" className="my-3 rounded-xl overflow-hidden bg-[#111111] border border-white/[0.08]">
+          <pre className="p-3.5 text-xs font-mono text-orange-200 overflow-x-auto">
             <code>{codeBuffer.join('\n')}</code>
           </pre>
         </div>
@@ -120,7 +120,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   if (isUser) {
     return (
       <div className="flex justify-end my-3">
-        <div className="max-w-[85%] sm:max-w-[75%] px-4 py-3 bg-[#1c1826] hover:bg-[#231e30] text-white rounded-2xl rounded-tr-sm border border-purple-500/15 shadow-md shadow-black/40 text-sm leading-relaxed transition-all">
+        <div className="max-w-[85%] sm:max-w-[75%] px-4 py-3 bg-[#1e1e1e] hover:bg-[#232323] text-white rounded-2xl rounded-tr-sm border border-white/[0.06] shadow-md shadow-black/40 text-sm leading-relaxed transition-all">
           {message.content}
         </div>
       </div>
@@ -132,10 +132,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       {/* AI Header with Avatar & Actions */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-purple-600 to-violet-400 flex items-center justify-center shadow-sm shadow-purple-500/30">
-            <Sparkles className="w-3 h-3 text-white font-bold" />
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center shadow-sm shadow-orange-500/20">
+            <Sparkles className="w-3 h-3 text-black font-bold" />
           </div>
-          <span className="text-xs font-semibold text-purple-300">Zoya AI</span>
+          <span className="text-xs font-semibold text-gray-300">Zoya AI</span>
         </div>
 
         {/* Action icons */}
@@ -153,19 +153,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 
       {/* Thought reasoning accordion (if Think mode was active) */}
       {message.thought && (
-        <div className="mb-3 rounded-xl bg-[#110e17] border border-purple-500/25 overflow-hidden shadow-md shadow-black/40">
+        <div className="mb-3 rounded-xl bg-[#121212] border border-orange-500/20 overflow-hidden">
           <button
             onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-purple-300 bg-purple-500/10 hover:bg-purple-500/15 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-orange-400 bg-orange-500/5 hover:bg-orange-500/10 transition-colors"
           >
             <div className="flex items-center gap-1.5">
-              <BrainCircuit className="w-3.5 h-3.5 text-purple-400" />
+              <BrainCircuit className="w-3.5 h-3.5" />
               <span>Thought Process</span>
             </div>
             {isThoughtOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {isThoughtOpen && (
-            <div className="p-3 text-xs font-mono text-gray-400 whitespace-pre-wrap border-t border-white/[0.04] bg-[#0c0a10]">
+            <div className="p-3 text-xs font-mono text-gray-400 whitespace-pre-wrap border-t border-white/[0.04] bg-[#0d0d0d]">
               {message.thought}
             </div>
           )}
@@ -176,7 +176,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       <div className="pl-7 pr-2 font-sans">
         {renderFormattedContent(message.content)}
         {message.isStreaming && (
-          <span className="inline-block w-1.5 h-4 ml-1 bg-purple-500 animate-pulse align-middle" />
+          <span className="inline-block w-1.5 h-4 ml-1 bg-orange-500 animate-pulse align-middle" />
         )}
       </div>
     </div>

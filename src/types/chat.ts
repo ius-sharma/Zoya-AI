@@ -21,7 +21,7 @@ export interface ChatMode {
   think: boolean;
 }
 
-export type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'searching' | 'speaking' | 'generating' | 'paused';
+export type VoiceStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'paused';
 
 export interface VoiceState {
   isOpen: boolean;
