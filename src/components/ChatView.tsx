@@ -2,10 +2,8 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
-import { QuickChips } from './QuickChips';
 import { InputBar } from './InputBar';
 import { useChat } from '@/context/ChatContext';
-import { QuickChip } from '@/types/chat';
 
 export const ChatView: React.FC = () => {
   const { activeConversation, sendMessage, isStreaming } = useChat();
@@ -55,10 +53,6 @@ export const ChatView: React.FC = () => {
     sendMessage(text);
   };
 
-  const handleSelectChip = (chip: QuickChip) => {
-    sendMessage(chip.prompt, chip.id);
-  };
-
   return (
     <div className="flex-1 flex flex-col h-[calc(100vh-61px)] bg-[#FAF6F0] overflow-hidden relative">
       {/* Subtle warm rust ambient background glow */}
@@ -91,7 +85,7 @@ export const ChatView: React.FC = () => {
           </div>
         ) : null}
 
-        {/* 3. Input & Quick Chips Unit (Centered in empty state, anchored at bottom in active chat) */}
+        {/* 3. Input Unit (Centered in empty state, anchored at bottom in active chat) */}
         <div
           className={`w-full max-w-3xl mx-auto transition-all duration-500 ease-out ${
             isHeroEmpty
@@ -99,12 +93,6 @@ export const ChatView: React.FC = () => {
               : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 to-transparent pt-2'
           }`}
         >
-          {/* Quick Action Chips */}
-          <div className="px-3 sm:px-4 mb-1">
-            <QuickChips onSelectChip={handleSelectChip} disabled={isStreaming} />
-          </div>
-
-          {/* Input Bar */}
           <InputBar onSendMessage={handleSend} disabled={isStreaming} />
         </div>
       </div>
