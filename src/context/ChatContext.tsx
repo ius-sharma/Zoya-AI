@@ -1,0 +1,373 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { Conversation, Message, ChatMode, VoiceState, VoiceStatus } from '@/types/chat';
+import {
+  getStoredConversations,
+  saveStoredConversations,
+  getStoredActiveId,
+  saveStoredActiveId,
+  generateConversationTitle,
+  createNewConversation,
+} from '@/utils/storage';
+
+interface ChatContextType {
+  conversations: Conversation[];
+  activeConversation: Conversation | null;
+  activeId: string | null;
+  mode: ChatMode;
+  setMode: React.Dispatch<React.SetStateAction<ChatMode>>;
+  toggleDeepSearch: () => void;
+  toggleThink: () => void;
+  voiceState: VoiceState;
+  setVoiceState: React.Dispatch<React.SetStateAction<VoiceState>>;
+  openVoiceMode: () => void;
+  closeVoiceMode: () => void;
+  setVoiceStatus: (status: VoiceStatus) => void;
+  isStreaming: boolean;
+  sendMessage: (content: string, quickAction?: string) => Promise<string | null>;
+  createNewChat: () => void;
+  selectConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleSidebar: () => void;
+}
+
+const ChatContext = createContext<ChatContextType | undefined>(undefined);
+
+export function ChatProvider({ children }: { children: React.ReactNode }) {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+  const [mode, setMode] = useState<ChatMode>({
+    deepSearch: false,
+    think: false,
+  });
+
+  const [voiceState, setVoiceState] = useState<VoiceState>({
+    isOpen: false,
+    status: 'idle',
+    userTranscript: '',
+    interimTranscript: '',
+    aiResponse: '',
+    isMuted: false,
+  });
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedConvos = getStoredConversations();
+    const savedActiveId = getStoredActiveId();
+
+    if (savedConvos.length > 0) {
+      setConversations(savedConvos);
+      if (savedActiveId && savedConvos.some((c) => c.id === savedActiveId)) {
+        setActiveId(savedActiveId);
+      } else {
+        setActiveId(savedConvos[0].id);
+      }
+    } else {
+      const newConvo = createNewConversation();
+      setConversations([newConvo]);
+      setActiveId(newConvo.id);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Save to localStorage on updates
+  useEffect(() => {
+    if (!isLoaded) return;
+    saveStoredConversations(conversations);
+    saveStoredActiveId(activeId);
+  }, [conversations, activeId, isLoaded]);
+
+  const activeConversation = conversations.find((c) => c.id === activeId) || null;
+
+  const toggleDeepSearch = useCallback(() => {
+    setMode((prev) => ({ ...prev, deepSearch: !prev.deepSearch }));
+  }, []);
+
+  const toggleThink = useCallback(() => {
+    setMode((prev) => ({ ...prev, think: !prev.think }));
+  }, []);
+
+  const openVoiceMode = useCallback(() => {
+    setVoiceState((prev) => ({
+      ...prev,
+      isOpen: true,
+      status: 'listening',
+      userTranscript: '',
+      interimTranscript: '',
+      aiResponse: '',
+    }));
+  }, []);
+
+  const closeVoiceMode = useCallback(() => {
+    setVoiceState((prev) => ({
+      ...prev,
+      isOpen: false,
+      status: 'idle',
+      userTranscript: '',
+      interimTranscript: '',
+      aiResponse: '',
+    }));
+  }, []);
+
+  const setVoiceStatus = useCallback((status: VoiceStatus) => {
+    setVoiceState((prev) => ({ ...prev, status }));
+  }, []);
+
+  const createNewChat = useCallback(() => {
+    const newConvo = createNewConversation();
+    setConversations((prev) => [newConvo, ...prev]);
+    setActiveId(newConvo.id);
+    setIsSidebarOpen(false);
+  }, []);
+
+  const selectConversation = useCallback((id: string) => {
+    setActiveId(id);
+    setIsSidebarOpen(false);
+  }, []);
+
+  const deleteConversation = useCallback((id: string) => {
+    setConversations((prev) => {
+      const filtered = prev.filter((c) => c.id !== id);
+      if (filtered.length === 0) {
+        const fresh = createNewConversation();
+        setActiveId(fresh.id);
+        return [fresh];
+      }
+      return filtered;
+    });
+
+    setActiveId((prevId) => {
+      if (prevId === id) {
+        const remaining = conversations.filter((c) => c.id !== id);
+        return remaining[0]?.id || null;
+      }
+      return prevId;
+    });
+  }, [conversations]);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
+  const sendMessage = useCallback(
+    async (content: string, quickAction?: string): Promise<string | null> => {
+      if (!content.trim()) return null;
+
+      const userMsgText = content.trim();
+      const userMessage: Message = {
+        id: 'msg_u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+        role: 'user',
+        content: userMsgText,
+        createdAt: Date.now(),
+      };
+
+      const assistantMsgId = 'msg_a_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+      const assistantMessage: Message = {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        isStreaming: true,
+      };
+
+      let currentConvoId = activeId;
+      let targetConvo = conversations.find((c) => c.id === currentConvoId);
+
+      if (!targetConvo) {
+        targetConvo = createNewConversation();
+        currentConvoId = targetConvo.id;
+        setConversations((prev) => [targetConvo!, ...prev]);
+        setActiveId(currentConvoId);
+      }
+
+      // Compute new title if this is the first message
+      const shouldUpdateTitle = targetConvo.messages.length === 0;
+      const newTitle = shouldUpdateTitle ? generateConversationTitle(userMsgText) : targetConvo.title;
+
+      // Update state with user message & empty assistant placeholder
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvoId) {
+            return {
+              ...c,
+              title: newTitle,
+              updatedAt: Date.now(),
+              messages: [...c.messages, userMessage, assistantMessage],
+            };
+          }
+          return c;
+        })
+      );
+
+      setIsStreaming(true);
+
+      // Collect payload
+      const historyToSend = [...targetConvo.messages, userMessage].map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: historyToSend,
+            mode: {
+              deepSearch: mode.deepSearch,
+              think: mode.think,
+            },
+            quickAction,
+          }),
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error('Chat API response failed');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = '';
+        let thoughtBlock = '';
+        let isInsideThink = false;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+
+          // Parse potential thought block delimiters
+          if (chunk.includes('[THINK_START]')) {
+            isInsideThink = true;
+          }
+
+          if (isInsideThink) {
+            if (chunk.includes('[THINK_END]')) {
+              isInsideThink = false;
+              const parts = chunk.split('[THINK_END]');
+              thoughtBlock += parts[0].replace('[THINK_START]', '');
+              accumulatedText += parts[1] || '';
+            } else {
+              thoughtBlock += chunk.replace('[THINK_START]', '');
+            }
+          } else {
+            accumulatedText += chunk;
+          }
+
+          const currentContent = accumulatedText;
+          const currentThought = thoughtBlock.trim() || undefined;
+
+          // Update active conversation assistant message in-place
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id === currentConvoId) {
+                return {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === assistantMsgId
+                      ? {
+                          ...m,
+                          content: currentContent,
+                          thought: currentThought,
+                          isStreaming: true,
+                        }
+                      : m
+                  ),
+                };
+              }
+              return c;
+            })
+          );
+        }
+
+        // Finalize streaming
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id === currentConvoId) {
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantMsgId ? { ...m, isStreaming: false } : m
+                ),
+              };
+            }
+            return c;
+          })
+        );
+
+        setIsStreaming(false);
+        return accumulatedText;
+      } catch (err) {
+        console.error('Error sending message:', err);
+        const fallbackText = "I'm having a brief issue connecting. Please verify your connection or try again.";
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id === currentConvoId) {
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === assistantMsgId
+                    ? {
+                        ...m,
+                        content: fallbackText,
+                        isStreaming: false,
+                      }
+                    : m
+                ),
+              };
+            }
+            return c;
+          })
+        );
+        setIsStreaming(false);
+        return fallbackText;
+      }
+    },
+    [activeId, conversations, mode]
+  );
+
+  return (
+    <ChatContext.Provider
+      value={{
+        conversations,
+        activeConversation,
+        activeId,
+        mode,
+        setMode,
+        toggleDeepSearch,
+        toggleThink,
+        voiceState,
+        setVoiceState,
+        openVoiceMode,
+        closeVoiceMode,
+        setVoiceStatus,
+        isStreaming,
+        sendMessage,
+        createNewChat,
+        selectConversation,
+        deleteConversation,
+        isSidebarOpen,
+        setIsSidebarOpen,
+        toggleSidebar,
+      }}
+    >
+      {children}
+    </ChatContext.Provider>
+  );
+}
+
+export function useChat() {
+  const context = useContext(ChatContext);
+  if (!context) {
+    throw new Error('useChat must be used within a ChatProvider');
+  }
+  return context;
+}
