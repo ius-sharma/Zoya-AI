@@ -30,14 +30,36 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+const themeInitScript = `
+  (function() {
+    try {
+      var saved = localStorage.getItem('zoya_ai_theme');
+      var isDark = false;
+      if (saved === 'dark') {
+        isDark = true;
+      } else if (saved === 'system') {
+        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {}
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${instrumentSerif.variable}`}>
-      <body className="bg-[#FAF6F0] text-[#292524] font-sans antialiased min-h-screen">
+    <html lang="en" suppressHydrationWarning className={`${dmSans.variable} ${instrumentSerif.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="bg-[#FAF6F0] dark:bg-[#12100E] text-[#292524] dark:text-[#FAF6F0] font-sans antialiased min-h-screen">
         {children}
       </body>
     </html>

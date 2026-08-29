@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Conversation, Message, ChatMode, VoiceState, VoiceStatus } from '@/types/chat';
+import { Conversation, Message, ChatMode, VoiceState, VoiceStatus, ProviderConfig } from '@/types/chat';
 import {
   getStoredConversations,
   saveStoredConversations,
@@ -10,6 +10,8 @@ import {
   generateConversationTitle,
   createNewConversation,
 } from '@/utils/storage';
+
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ChatContextType {
   conversations: Conversation[];
@@ -36,6 +38,12 @@ interface ChatContextType {
   updateUserName: (name: string) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  providerConfig: ProviderConfig;
+  updateProviderConfig: (config: ProviderConfig) => void;
+  theme: ThemeMode;
+  resolvedTheme: 'light' | 'dark';
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -48,6 +56,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('Ayush');
+  const [providerConfig, setProviderConfig] = useState<ProviderConfig>({
+    provider: 'default',
+    model: 'llama-3.3-70b-versatile',
+  });
+  const [theme, setThemeState] = useState<ThemeMode>('light');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   const [mode, setMode] = useState<ChatMode>({
     deepSearch: false,
@@ -63,6 +77,42 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     isMuted: false,
   });
 
+  const applyTheme = useCallback((selectedTheme: ThemeMode) => {
+    if (typeof window === 'undefined') return;
+    let isDark = false;
+    if (selectedTheme === 'dark') {
+      isDark = true;
+    } else if (selectedTheme === 'light') {
+      isDark = false;
+    } else if (selectedTheme === 'system') {
+      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      setResolvedTheme('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      setResolvedTheme('light');
+    }
+  }, []);
+
+  const setTheme = useCallback(
+    (newTheme: ThemeMode) => {
+      setThemeState(newTheme);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zoya_ai_theme', newTheme);
+      }
+      applyTheme(newTheme);
+    },
+    [applyTheme]
+  );
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme: ThemeMode = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+  }, [resolvedTheme, setTheme]);
+
   // Load from localStorage on mount
   useEffect(() => {
     const savedConvos = getStoredConversations();
@@ -73,6 +123,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (savedName && savedName.trim()) {
         setUserName(savedName.trim());
       }
+
+      const savedProvider = localStorage.getItem('zoya_ai_provider_config');
+      if (savedProvider) {
+        try {
+          const parsed = JSON.parse(savedProvider);
+          if (parsed && parsed.provider) {
+            setProviderConfig(parsed);
+          }
+        } catch (e) {
+          // ignore parsing error
+        }
+      }
+
+      const savedTheme = localStorage.getItem('zoya_ai_theme') as ThemeMode | null;
+      const initialTheme: ThemeMode = savedTheme || 'light';
+      setThemeState(initialTheme);
+      applyTheme(initialTheme);
+
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemChange = () => {
+        const currentSaved = localStorage.getItem('zoya_ai_theme') as ThemeMode | null;
+        if (currentSaved === 'system') {
+          applyTheme('system');
+        }
+      };
+
+      mediaQuery.addEventListener('change', handleSystemChange);
     }
 
     if (savedConvos.length > 0) {
@@ -91,7 +168,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setActiveId(initialDraft.id);
     }
     setIsLoaded(true);
-  }, []);
+  }, [applyTheme]);
 
   // Save only non-empty conversations to localStorage on updates
   useEffect(() => {
@@ -105,6 +182,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setUserName(trimmed);
     if (typeof window !== 'undefined') {
       localStorage.setItem('zoya_ai_user_name', trimmed);
+    }
+  }, []);
+
+  const updateProviderConfig = useCallback((config: ProviderConfig) => {
+    setProviderConfig(config);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('zoya_ai_provider_config', JSON.stringify(config));
     }
   }, []);
 
@@ -262,6 +346,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             messages: historyToSend,
             userName,
+            providerConfig,
             quickAction,
           }),
         });
@@ -348,7 +433,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return fallbackText;
       }
     },
-    [activeId, conversations, userName]
+    [activeId, conversations, userName, providerConfig]
   );
 
   return (
@@ -378,6 +463,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         updateUserName,
         isSettingsOpen,
         setIsSettingsOpen,
+        providerConfig,
+        updateProviderConfig,
+        theme,
+        resolvedTheme,
+        setTheme,
+        toggleTheme,
       }}
     >
       {children}

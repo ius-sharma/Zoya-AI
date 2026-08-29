@@ -174,30 +174,30 @@ export const VoiceModeScreen: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#FAF6F0] text-[#292524] select-none overflow-hidden animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#FAF6F0] dark:bg-[#12100E] text-[#292524] dark:text-[#FAF6F0] select-none overflow-hidden animate-in fade-in duration-300 transition-colors duration-200">
       {/* Top Bar Takeover */}
       <TopBar isVoiceMode={true} />
 
-      {/* Main Content Area in Warm Satin Cream */}
+      {/* Main Content Area */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-between px-4 py-4 max-w-4xl mx-auto w-full overflow-visible">
         {/* Upper Area: Live User Transcript */}
         <div className="w-full flex-1 flex flex-col items-center justify-end pb-2 min-h-[70px] text-center">
           {interimTranscript || userTranscript ? (
-            <div className="max-w-md px-4 py-2.5 rounded-2xl bg-[#FFFFFF] border border-[#E8D8C8] shadow-md shadow-stone-200/50 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
-              <p className="text-sm sm:text-base font-semibold text-[#292524] leading-relaxed">
+            <div className="max-w-md px-4 py-2.5 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] shadow-md shadow-stone-200/50 dark:shadow-black/50 backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+              <p className="text-sm sm:text-base font-semibold text-[#292524] dark:text-[#FAF6F0] leading-relaxed">
                 {userTranscript}
-                <span className="text-[#9C4A1A] font-bold">{interimTranscript}</span>
+                <span className="text-[#9C4A1A] dark:text-[#D97706] font-bold">{interimTranscript}</span>
               </p>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-xs text-[#786A5E] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#9C4A1A] animate-ping" />
+            <div className="flex items-center gap-1.5 text-xs text-[#786A5E] dark:text-[#A89F91] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#9C4A1A] dark:bg-[#D97706] animate-ping" />
               <span>Tap the mic or speak naturally</span>
             </div>
           )}
         </div>
 
-        {/* Center: Exact ChatGPT Liquid Gradient Circle in Light Cream + Rust Brown */}
+        {/* Center: Particle Orb */}
         <div className="relative w-full flex flex-col items-center justify-center my-auto px-2 overflow-visible">
           <ParticleOrb
             state={isMuted ? 'idle' : status === 'speaking' ? 'speaking' : status === 'thinking' ? 'thinking' : status === 'listening' ? 'listening' : 'idle'}
@@ -211,10 +211,10 @@ export const VoiceModeScreen: React.FC = () => {
             <span
               className={`text-sm font-bold tracking-wide transition-colors ${
                 status === 'speaking'
-                  ? 'text-[#7C3512] font-extrabold animate-pulse'
+                  ? 'text-[#7C3512] dark:text-[#FAF6F0] font-extrabold animate-pulse'
                   : status === 'thinking'
-                  ? 'text-[#9C4A1A]'
-                  : 'text-[#574E45]'
+                  ? 'text-[#9C4A1A] dark:text-[#D97706]'
+                  : 'text-[#574E45] dark:text-[#C5B8AB]'
               }`}
             >
               {getStatusText()}
@@ -222,7 +222,7 @@ export const VoiceModeScreen: React.FC = () => {
           </div>
 
           {micPermissionDenied && (
-            <div className="mt-2 text-xs text-[#7C3512] bg-[#9C4A1A]/10 px-3.5 py-1.5 rounded-full border border-[#9C4A1A]/30 font-medium">
+            <div className="mt-2 text-xs text-[#7C3512] dark:text-[#FAF6F0] bg-[#9C4A1A]/10 dark:bg-[#9C4A1A]/20 px-3.5 py-1.5 rounded-full border border-[#9C4A1A]/30 font-medium">
               Mic permission needed for real voice. Running in interactive simulator mode.
             </div>
           )}
@@ -231,37 +231,36 @@ export const VoiceModeScreen: React.FC = () => {
         {/* Lower Area: AI Streamed Response Transcript */}
         <div className="w-full flex-1 flex flex-col items-center justify-start pt-4 min-h-[100px] text-center">
           {aiResponseText && (
-            <div className="max-w-lg px-4 py-3 rounded-2xl bg-[#FFFFFF] border border-[#E8D8C8] shadow-xl shadow-stone-200/50 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <p className="text-xs sm:text-sm text-[#292524] font-medium leading-relaxed line-clamp-4">
+            <div className="max-w-lg px-4 py-3 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] shadow-xl shadow-stone-200/50 dark:shadow-black/50 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <p className="text-xs sm:text-sm text-[#292524] dark:text-[#FAF6F0] font-medium leading-relaxed line-clamp-4">
                 {aiResponseText}
               </p>
             </div>
           )}
         </div>
 
-        {/* Bottom Control Row (3 buttons: Keyboard, Large Rust Brown Mic, X) */}
+        {/* Bottom Control Row */}
         <div className="w-full flex items-center justify-center gap-8 pt-6 pb-4">
-          {/* 1. Keyboard Icon (Left: Exits back to text chat) */}
+          {/* 1. Keyboard Icon */}
           <button
             onClick={closeVoiceMode}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#FFFFFF] hover:bg-[#F5EBE0] text-[#574E45] hover:text-[#292524] border border-[#E8D8C8] transition-all hover:scale-105 active:scale-95 shadow-md shadow-stone-200/60"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#FFFFFF] dark:bg-[#1C1917] hover:bg-[#F5EBE0] dark:hover:bg-[#26221E] text-[#574E45] dark:text-[#C5B8AB] hover:text-[#292524] dark:hover:text-[#FAF6F0] border border-[#E8D8C8] dark:border-[#2E2722] transition-all hover:scale-105 active:scale-95 shadow-md shadow-stone-200/60 dark:shadow-black/40"
             title="Switch to Text Chat"
             aria-label="Exit voice mode to keyboard"
           >
             <Keyboard className="w-5 h-5" />
           </button>
 
-          {/* 2. Large Rust Brown Mic Button (Center: Tap to mute/pause mic) */}
+          {/* 2. Mic Button */}
           <div className="relative">
-            {/* Pulsing ring when active listening */}
             {!isMuted && status === 'listening' && (
-              <span className="absolute -inset-2 rounded-full bg-[#9C4A1A]/20 animate-ping pointer-events-none" />
+              <span className="absolute -inset-2 rounded-full bg-[#9C4A1A]/20 dark:bg-[#D97706]/30 animate-ping pointer-events-none" />
             )}
             <button
               onClick={handleToggleMute}
               className={`relative flex items-center justify-center w-16 h-16 rounded-full transition-all duration-300 shadow-xl hover:scale-105 active:scale-95 ${
                 isMuted
-                  ? 'bg-[#EFE6DD] text-[#786A5E] border border-[#E0D0BE] shadow-stone-300/40'
+                  ? 'bg-[#EFE6DD] dark:bg-[#26221E] text-[#786A5E] dark:text-[#A89F91] border border-[#E0D0BE] dark:border-[#2E2722] shadow-stone-300/40'
                   : 'bg-gradient-to-tr from-[#7C3512] via-[#9C4A1A] to-[#B85D19] text-white shadow-[#9C4A1A]/35 hover:shadow-[#9C4A1A]/55'
               }`}
               title={isMuted ? 'Unmute microphone' : 'Mute / pause microphone'}
@@ -271,10 +270,10 @@ export const VoiceModeScreen: React.FC = () => {
             </button>
           </div>
 
-          {/* 3. X Icon (Right: Closes voice mode entirely) */}
+          {/* 3. X Icon */}
           <button
             onClick={closeVoiceMode}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#FFFFFF] hover:bg-[#F5EBE0] text-[#574E45] hover:text-[#292524] border border-[#E8D8C8] transition-all hover:scale-105 active:scale-95 shadow-md shadow-stone-200/60"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-[#FFFFFF] dark:bg-[#1C1917] hover:bg-[#F5EBE0] dark:hover:bg-[#26221E] text-[#574E45] dark:text-[#C5B8AB] hover:text-[#292524] dark:hover:text-[#FAF6F0] border border-[#E8D8C8] dark:border-[#2E2722] transition-all hover:scale-105 active:scale-95 shadow-md shadow-stone-200/60 dark:shadow-black/40"
             title="Close Voice Mode"
             aria-label="Close voice mode"
           >

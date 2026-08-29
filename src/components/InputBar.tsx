@@ -82,7 +82,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
   return (
     <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 pb-4 pt-0.5">
       {/* Outer Atelier Silk Capsule */}
-      <div className="relative rounded-[26px] bg-[#FFFFFF] border border-[#E8D8C8] shadow-lg shadow-stone-300/35 focus-within:border-[#B85D19]/40 focus-within:ring-2 focus-within:ring-[#B85D19]/15 transition-all duration-300 overflow-hidden">
+      <div className="relative rounded-[26px] bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] shadow-lg shadow-stone-300/35 dark:shadow-black/50 focus-within:border-[#B85D19]/40 focus-within:ring-2 focus-within:ring-[#B85D19]/15 transition-all duration-300 overflow-hidden">
         {/* Upper Area: Textarea with Silky Typography */}
         <div className="px-4 pt-3 pb-0">
           <textarea
@@ -93,7 +93,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
             disabled={disabled}
             placeholder={ROTATING_PLACEHOLDERS[placeholderIndex]}
             rows={1}
-            className="w-full max-h-36 min-h-[28px] bg-transparent text-[#292524] placeholder-[#A89F91] text-sm sm:text-base resize-none outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none caret-[#9C4A1A] leading-relaxed transition-all"
+            className="w-full max-h-36 min-h-[28px] bg-transparent text-[#292524] dark:text-[#FAF6F0] placeholder-[#A89F91] dark:placeholder-[#6E645A] text-sm sm:text-base resize-none outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 focus-visible:ring-0 border-none caret-[#9C4A1A] dark:caret-[#D97706] leading-relaxed transition-all"
           />
         </div>
 
@@ -103,7 +103,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
           <div className="flex items-center gap-1">
             <button
               type="button"
-              className="flex items-center justify-center w-7 h-7 rounded-full text-[#8C7A6B] hover:text-[#292524] hover:bg-[#FAF6F0] transition-colors"
+              className="flex items-center justify-center w-7 h-7 rounded-full text-[#8C7A6B] dark:text-[#A89F91] hover:text-[#292524] dark:hover:text-[#FAF6F0] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] transition-colors"
               title="Attach document or image (Coming soon)"
               aria-label="Attach file"
             >
@@ -121,7 +121,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
               className={`relative flex items-center justify-center w-8 h-8 rounded-full p-[1.5px] transition-all duration-300 ease-out overflow-hidden cursor-pointer focus:outline-none ${
                 !isHasText
                   ? 'bg-transparent shadow-md shadow-amber-500/25 hover:shadow-lg hover:shadow-amber-500/35 hover:scale-105 active:scale-95'
-                  : 'bg-[#FAF6F0] hover:bg-[#F5EBE0] shadow-none hover:scale-105 active:scale-95'
+                  : 'bg-[#FAF6F0] dark:bg-[#26221E] hover:bg-[#F5EBE0] dark:hover:bg-[#2E2722] shadow-none hover:scale-105 active:scale-95'
               }`}
               title="Open Voice Mode"
               aria-label="Enter Voice Mode"
@@ -150,7 +150,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
                 className={`relative z-10 flex items-center justify-center transition-all duration-300 ${
                   !isHasText
                     ? 'text-[#7C3512] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] scale-100'
-                    : 'text-[#8C7A6B] hover:text-[#292524] scale-95'
+                    : 'text-[#8C7A6B] dark:text-[#A89F91] hover:text-[#292524] dark:hover:text-[#FAF6F0] scale-95'
                 }`}
               >
                 <Mic className="w-3.5 h-3.5 stroke-[2.4]" />
@@ -165,7 +165,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
               className={`relative flex items-center justify-center w-8 h-8 rounded-full p-[1.5px] transition-all duration-300 ease-out overflow-hidden focus:outline-none ${
                 isHasText
                   ? 'bg-transparent shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 hover:scale-105 active:scale-95 cursor-pointer'
-                  : 'bg-[#F5EBE0]/80 shadow-none cursor-not-allowed opacity-60'
+                  : 'bg-[#F5EBE0]/80 dark:bg-[#26221E]/80 shadow-none cursor-not-allowed opacity-60'
               }`}
               title={isHasText ? 'Send message (Enter)' : 'Type to send'}
               aria-label="Send message"
@@ -194,7 +194,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
                 className={`relative z-10 flex items-center justify-center transition-all duration-300 ${
                   isHasText
                     ? 'text-[#7C3512] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] scale-100'
-                    : 'text-[#BFAF9E] scale-95'
+                    : 'text-[#BFAF9E] dark:text-[#574E45] scale-95'
                 }`}
               >
                 <ArrowUp className="w-4 h-4 font-bold stroke-[2.8]" />
@@ -206,7 +206,7 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
       {/* Subtle branding hint */}
       <div className="text-center pt-1.5">
-        <span className="text-[11px] text-[#8C7A6B]">
+        <span className="text-[11px] text-[#8C7A6B] dark:text-[#786A5E]">
           Zoya is your AI best friend. Verify important facts.
         </span>
       </div>

@@ -53,9 +53,9 @@ export const ChatView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden relative bg-[#FAF6F0]">
+    <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden relative bg-[#FAF6F0] dark:bg-[#12100E] transition-colors duration-200">
       {/* Subtle warm rust ambient background glow */}
-      <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#9C4A1A]/5 blur-[140px] rounded-full" />
+      <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#9C4A1A]/5 dark:bg-[#B85D19]/10 blur-[140px] rounded-full" />
 
       {/* Main Dynamic Viewport Container */}
       <div
@@ -67,7 +67,7 @@ export const ChatView: React.FC = () => {
         {!isHeroEmpty ? (
           <div
             ref={scrollContainerRef}
-            className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 scrollbar-thin scrollbar-thumb-stone-300 w-full animate-in fade-in duration-300"
+            className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700 w-full animate-in fade-in duration-300"
           >
             <div className="max-w-3xl mx-auto space-y-3 pb-4 pt-2">
               {messages.map((message) => (
@@ -81,7 +81,7 @@ export const ChatView: React.FC = () => {
         {/* 2. Hero Center Greeting (Centered in empty state) */}
         {isHeroEmpty ? (
           <div className="text-center px-4 mb-8 animate-in fade-in zoom-in-95 duration-500">
-            <h1 className="font-serif italic font-normal text-4xl sm:text-6xl text-[#1C1917] tracking-tight leading-tight select-none">
+            <h1 className="font-serif italic font-normal text-4xl sm:text-6xl text-[#1C1917] dark:text-[#FAF6F0] tracking-tight leading-tight select-none">
               {greetingText}
             </h1>
           </div>
@@ -92,7 +92,7 @@ export const ChatView: React.FC = () => {
           className={`shrink-0 w-full z-20 transition-all duration-500 ease-out ${
             isHeroEmpty
               ? 'max-w-3xl mx-auto px-3 sm:px-4'
-              : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 to-transparent pt-2 pb-1'
+              : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 dark:from-[#12100E] dark:via-[#12100E]/95 to-transparent pt-2 pb-1'
           }`}
         >
           <InputBar onSendMessage={handleSend} disabled={isStreaming} />

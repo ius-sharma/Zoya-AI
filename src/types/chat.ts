@@ -38,3 +38,12 @@ export interface QuickChip {
   iconName?: string;
   prompt: string;
 }
+
+export type LLMProvider = 'default' | 'openai' | 'anthropic' | 'gemini' | 'groq';
+
+export interface ProviderConfig {
+  provider: LLMProvider;
+  apiKey?: string;
+  model?: string;
+  customBaseUrl?: string;
+}

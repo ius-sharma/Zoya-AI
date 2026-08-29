@@ -1,10 +1,16 @@
 import { NextRequest } from 'next/server';
+import { LLMProvider } from '@/types/chat';
 
 export const runtime = 'nodejs';
 
 interface ChatRequestPayload {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   userName?: string;
+  providerConfig?: {
+    provider: LLMProvider;
+    apiKey?: string;
+    model?: string;
+  };
 }
 
 // In-memory cache for available Groq models
@@ -28,7 +34,6 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
     if (res.ok) {
       const data = await res.json();
       const rawList: Array<{ id: string; active?: boolean }> = data.data || [];
-      // Filter active text/chat models
       const chatModels = rawList
         .filter((m) => m.active !== false)
         .map((m) => m.id)
@@ -40,7 +45,6 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
             !id.includes('embed')
         );
 
-      console.log('✅ Active Groq Models found for your API key:', chatModels);
       if (chatModels.length > 0) {
         cachedGroqModels = chatModels;
         lastModelFetch = now;
@@ -51,7 +55,6 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
     console.warn('Failed to query dynamic Groq models:', err);
   }
 
-  // Fallback defaults if query fails
   return [
     'llama-3.1-8b-instant',
     'llama-3.3-70b-versatile',
@@ -63,7 +66,7 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages = [], userName = 'Ayush' } = body;
+    const { messages = [], userName = 'Ayush', providerConfig } = body;
 
     const userDisplayName =
       typeof userName === 'string' && userName.trim() ? userName.trim() : 'Ayush';
@@ -78,7 +81,7 @@ STRICT CONVERSATIONAL RULES:
 4. DETAILED ONLY WHEN ASKED: Only give longer responses, step-by-step guides, or code when ${userDisplayName} explicitly asks for code, tutorials, or detailed explanations. Otherwise, keep it short, snappy, and full of personality.
 5. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!`;
 
-    // Filter and sanitize messages to ensure no empty content (Groq requirement)
+    // Sanitize message history to remove any empty content
     const validMessages = messages
       .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
       .map((m) => ({
@@ -90,11 +93,165 @@ STRICT CONVERSATIONAL RULES:
       return new Response('Please provide a message.', { status: 400 });
     }
 
-    const groqApiKey = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY;
+    const provider = providerConfig?.provider || 'default';
+    const userApiKey = providerConfig?.apiKey?.trim();
+    const userModel = providerConfig?.model?.trim();
 
-    // If Groq API key is present, stream real LLM response
-    if (groqApiKey && groqApiKey.trim() !== '' && groqApiKey !== 'your_groq_api_key_here') {
-      const apiKey = groqApiKey.trim();
+    // 1. ANTHROPIC CLAUDE PROVIDER
+    if (provider === 'anthropic' && userApiKey) {
+      const anthropicModel = userModel || 'claude-3-5-haiku-20241022';
+      const anthropicMessages = validMessages.map((m) => ({
+        role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+        content: m.content,
+      }));
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': userApiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: anthropicModel,
+          max_tokens: 1024,
+          system: dynamicSystemPrompt,
+          messages: anthropicMessages,
+          stream: true,
+        }),
+      });
+
+      if (res.ok && res.body) {
+        const encoder = new TextEncoder();
+        const decoder = new TextDecoder();
+        const reader = res.body.getReader();
+
+        const clientStream = new ReadableStream({
+          async start(controller) {
+            let buffer = '';
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  const trimmed = line.trim();
+                  if (!trimmed.startsWith('data: ')) continue;
+                  const jsonStr = trimmed.slice(6);
+                  try {
+                    const parsed = JSON.parse(jsonStr);
+                    if (parsed.type === 'content_block_delta') {
+                      const text = parsed.delta?.text;
+                      if (text) controller.enqueue(encoder.encode(text));
+                    }
+                  } catch {
+                    // Ignore parsing error for non-json SSE lines
+                  }
+                }
+              }
+              controller.close();
+            } catch (err) {
+              controller.error(err);
+            }
+          },
+        });
+
+        return new Response(clientStream, {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+          },
+        });
+      }
+    }
+
+    // 2. OPENAI (ChatGPT) PROVIDER
+    if (provider === 'openai' && userApiKey) {
+      const openAiModel = userModel || 'gpt-4o-mini';
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userApiKey}`,
+        },
+        body: JSON.stringify({
+          model: openAiModel,
+          messages: [
+            { role: 'system', content: dynamicSystemPrompt },
+            ...validMessages,
+          ],
+          temperature: 0.8,
+          stream: true,
+        }),
+      });
+
+      if (res.ok && res.body) {
+        return createOpenAICompatibleStream(res.body);
+      }
+    }
+
+    // 3. GOOGLE GEMINI PROVIDER (OpenAI-compatible endpoint)
+    if (provider === 'gemini' && userApiKey) {
+      const geminiModel = userModel || 'gemini-2.0-flash';
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userApiKey}`,
+          },
+          body: JSON.stringify({
+            model: geminiModel,
+            messages: [
+              { role: 'system', content: dynamicSystemPrompt },
+              ...validMessages,
+            ],
+            temperature: 0.8,
+            stream: true,
+          }),
+        }
+      );
+
+      if (res.ok && res.body) {
+        return createOpenAICompatibleStream(res.body);
+      }
+    }
+
+    // 4. USER'S CUSTOM GROQ KEY
+    if (provider === 'groq' && userApiKey) {
+      const customGroqModel = userModel || 'llama-3.3-70b-versatile';
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${userApiKey}`,
+        },
+        body: JSON.stringify({
+          model: customGroqModel,
+          messages: [
+            { role: 'system', content: dynamicSystemPrompt },
+            ...validMessages,
+          ],
+          temperature: 0.8,
+          stream: true,
+        }),
+      });
+
+      if (res.ok && res.body) {
+        return createOpenAICompatibleStream(res.body);
+      }
+    }
+
+    // 5. DEFAULT / FREE ZOYA CLOUD ENGINE (Built-in Server Groq API)
+    const serverGroqKey = process.env.GROQ_API_KEY;
+    if (serverGroqKey && serverGroqKey.trim() !== '' && serverGroqKey !== 'your_groq_api_key_here') {
+      const apiKey = serverGroqKey.trim();
       const modelsToTry = await getActiveGroqModels(apiKey);
 
       for (const model of modelsToTry) {
@@ -123,68 +280,17 @@ STRICT CONVERSATIONAL RULES:
           });
 
           if (groqResponse.ok && groqResponse.body) {
-            const encoder = new TextEncoder();
-            const decoder = new TextDecoder();
-            const reader = groqResponse.body.getReader();
-
-            const clientStream = new ReadableStream({
-              async start(controller) {
-                let buffer = '';
-                try {
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-
-                    for (const line of lines) {
-                      const trimmed = line.trim();
-                      if (!trimmed || trimmed.startsWith(':')) continue;
-                      if (trimmed === 'data: [DONE]') continue;
-
-                      if (trimmed.startsWith('data: ')) {
-                        const jsonStr = trimmed.slice(6);
-                        try {
-                          const parsed = JSON.parse(jsonStr);
-                          const content = parsed.choices?.[0]?.delta?.content;
-                          if (content) {
-                            controller.enqueue(encoder.encode(content));
-                          }
-                        } catch {
-                          // ignore malformed SSE json chunks
-                        }
-                      }
-                    }
-                  }
-                  controller.close();
-                } catch (err) {
-                  controller.error(err);
-                }
-              },
-            });
-
-            return new Response(clientStream, {
-              headers: {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Cache-Control': 'no-cache',
-                Connection: 'keep-alive',
-              },
-            });
-          } else {
-            const errText = await groqResponse.text();
-            console.warn(`Groq model "${model}" failed (${groqResponse.status}):`, errText);
+            return createOpenAICompatibleStream(groqResponse.body);
           }
         } catch (err) {
-          console.warn(`Groq model "${model}" fetch exception:`, err);
+          console.warn(`Default Groq model ${model} fetch failed:`, err);
         }
       }
     }
 
-    // Fallback if no models responded or key is missing
+    // Friendly fallback if no provider or server key configured
     const encoder = new TextEncoder();
-    const fallbackText = `Arre ${userDisplayName}! Main ready hoon bilkul! 💃✨\n\nBas ek chhota sa setup baaki hai: apne project ke **\`.env.local\`** file me jaao aur apni **\`GROQ_API_KEY\`** paste kar do:\n\n\`\`\`bash\nGROQ_API_KEY=gsk_your_actual_key_here\n\`\`\`\n\nJaise hi tum key daal kar dev server restart karoge, humari full-speed AI chat & voice shuru ho jayegi! 🔥`;
+    const fallbackText = `Arre ${userDisplayName}! Main ready hoon! 💃✨\n\nAap Settings me jaa kar apna koi bhi custom API key daal sakte hain (OpenAI, Claude, Gemini, ya Groq) ya server me **\`.env.local\`** me **\`GROQ_API_KEY\`** add kar lijiye! 🔥`;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -211,4 +317,57 @@ STRICT CONVERSATIONAL RULES:
       headers: { 'Content-Type': 'application/json' },
     });
   }
+}
+
+// Helper to stream OpenAI-compatible SSE events
+function createOpenAICompatibleStream(readableBody: ReadableStream<Uint8Array>) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const reader = readableBody.getReader();
+
+  const clientStream = new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith(':')) continue;
+            if (trimmed === 'data: [DONE]') continue;
+
+            if (trimmed.startsWith('data: ')) {
+              const jsonStr = trimmed.slice(6);
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  controller.enqueue(encoder.encode(content));
+                }
+              } catch {
+                // Ignore malformed chunks
+              }
+            }
+          }
+        }
+        controller.close();
+      } catch (err) {
+        controller.error(err);
+      }
+    },
+  });
+
+  return new Response(clientStream, {
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 }
