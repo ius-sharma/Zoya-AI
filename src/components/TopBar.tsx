@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, ChevronDown, Plus, Sparkles, User, Settings } from 'lucide-react';
+import { Menu, ChevronDown, Sparkles, User, Settings } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface TopBarProps {
@@ -9,7 +9,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
-  const { toggleSidebar, createNewChat } = useChat();
+  const { toggleSidebar } = useChat();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -31,7 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-1.5 px-2.5 py-1 text-base font-semibold text-[#292524] hover:bg-[#F5EBE0]/60 rounded-lg transition-colors group"
           >
-            <span className="font-serif italic font-bold tracking-wide text-2xl bg-gradient-to-r from-[#7C3512] via-[#9C4A1A] to-[#B85D19] bg-clip-text text-transparent">
+            <span className="font-serif italic text-2xl sm:text-[28px] font-normal text-[#1C1917] tracking-tight leading-none drop-shadow-xs">
               Zoya
             </span>
             <ChevronDown className="w-4 h-4 text-[#786A5E] group-hover:text-[#292524] transition-transform duration-200" />
@@ -74,19 +74,8 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
         </div>
       </div>
 
-      {/* Right side: New Chat + User Profile */}
+      {/* Right side: User Profile */}
       <div className="flex items-center gap-2">
-        {!isVoiceMode && (
-          <button
-            onClick={createNewChat}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#7C3512] hover:text-[#5C260B] bg-[#F5EBE0] hover:bg-[#EFE6DD] border border-[#E0D0BE] rounded-full transition-all shadow-sm shadow-stone-200/50"
-            title="Start new conversation"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#9C4A1A]" />
-            <span className="hidden sm:inline">New Chat</span>
-          </button>
-        )}
-
         {/* Profile Avatar */}
         <div className="relative">
           <button
