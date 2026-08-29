@@ -32,6 +32,10 @@ interface ChatContextType {
   isSidebarOpen: boolean;
   setIsSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   toggleSidebar: () => void;
+  userName: string;
+  updateUserName: (name: string) => void;
+  isSettingsOpen: boolean;
+  setIsSettingsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -42,6 +46,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [userName, setUserName] = useState<string>('Ayush');
 
   const [mode, setMode] = useState<ChatMode>({
     deepSearch: false,
@@ -61,6 +67,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const savedConvos = getStoredConversations();
     const savedActiveId = getStoredActiveId();
+
+    if (typeof window !== 'undefined') {
+      const savedName = localStorage.getItem('zoya_ai_user_name');
+      if (savedName && savedName.trim()) {
+        setUserName(savedName.trim());
+      }
+    }
 
     if (savedConvos.length > 0) {
       if (savedActiveId && savedConvos.some((c) => c.id === savedActiveId)) {
@@ -86,6 +99,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     saveStoredConversations(conversations);
     saveStoredActiveId(activeId);
   }, [conversations, activeId, isLoaded]);
+
+  const updateUserName = useCallback((name: string) => {
+    const trimmed = name.trim() || 'Ayush';
+    setUserName(trimmed);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('zoya_ai_user_name', trimmed);
+    }
+  }, []);
 
   const activeConversation = conversations.find((c) => c.id === activeId) || null;
 
@@ -240,10 +261,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: historyToSend,
-            mode: {
-              deepSearch: mode.deepSearch,
-              think: mode.think,
-            },
+            userName,
             quickAction,
           }),
         });
@@ -255,35 +273,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let accumulatedText = '';
-        let thoughtBlock = '';
-        let isInsideThink = false;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-
-          // Parse potential thought block delimiters
-          if (chunk.includes('[THINK_START]')) {
-            isInsideThink = true;
-          }
-
-          if (isInsideThink) {
-            if (chunk.includes('[THINK_END]')) {
-              isInsideThink = false;
-              const parts = chunk.split('[THINK_END]');
-              thoughtBlock += parts[0].replace('[THINK_START]', '');
-              accumulatedText += parts[1] || '';
-            } else {
-              thoughtBlock += chunk.replace('[THINK_START]', '');
-            }
-          } else {
-            accumulatedText += chunk;
-          }
+          accumulatedText += chunk;
 
           const currentContent = accumulatedText;
-          const currentThought = thoughtBlock.trim() || undefined;
 
           // Update active conversation assistant message in-place
           setConversations((prev) =>
@@ -296,7 +294,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                       ? {
                           ...m,
                           content: currentContent,
-                          thought: currentThought,
                           isStreaming: true,
                         }
                       : m
@@ -327,7 +324,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return accumulatedText;
       } catch (err) {
         console.error('Error sending message:', err);
-        const fallbackText = "I'm having a brief issue connecting. Please verify your connection or try again.";
+        const fallbackText = "Arre dost, connection me thodi issue aayi. Ek baar refresh karke dubara bhejo!";
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id === currentConvoId) {
@@ -351,7 +348,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return fallbackText;
       }
     },
-    [activeId, conversations, mode]
+    [activeId, conversations, userName]
   );
 
   return (
@@ -377,6 +374,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         isSidebarOpen,
         setIsSidebarOpen,
         toggleSidebar,
+        userName,
+        updateUserName,
+        isSettingsOpen,
+        setIsSettingsOpen,
       }}
     >
       {children}

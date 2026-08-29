@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Menu, ChevronDown, Sparkles, User, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { Menu, ChevronDown, Sparkles, User, Settings, Edit3 } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface TopBarProps {
@@ -9,9 +10,11 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
-  const { toggleSidebar } = useChat();
+  const { toggleSidebar, userName, setIsSettingsOpen } = useChat();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  const initialLetter = (userName?.trim() || 'A').charAt(0).toUpperCase();
 
   return (
     <header className="relative z-30 flex items-center justify-between px-4 py-3 bg-[#FFFFFF]/90 backdrop-blur-md border-b border-[#E8D8C8]">
@@ -46,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
               />
               <div className="absolute left-0 mt-2 w-56 p-1.5 bg-[#FFFFFF] border border-[#E8D8C8] rounded-xl shadow-xl shadow-stone-300/40 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-2 text-xs font-medium text-[#786A5E] border-b border-[#F5EBE0]">
-                  Active Model
+                  Active Engine
                 </div>
                 <button
                   onClick={() => setIsDropdownOpen(false)}
@@ -54,19 +57,11 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
                 >
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#9C4A1A]" />
-                    <span className="font-semibold">Zoya Turbo (Default)</span>
+                    <span className="font-semibold text-xs">Zoya Intelligence 2.5</span>
                   </div>
-                  <span className="text-[10px] bg-[#9C4A1A] text-white px-1.5 py-0.5 rounded font-mono font-medium">v2.5</span>
-                </button>
-                <button
-                  onClick={() => setIsDropdownOpen(false)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-left text-[#574E45] hover:text-[#292524] hover:bg-[#FAF6F0] rounded-lg mt-1 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#8C7A6B]" />
-                    <span>Zoya Reasoning</span>
-                  </div>
-                  <span className="text-[10px] bg-[#F5EBE0] text-[#786A5E] px-1.5 py-0.5 rounded font-mono">Pro</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#9C4A1A]/10 text-[#9C4A1A] font-bold">
+                    Fast
+                  </span>
                 </button>
               </div>
             </>
@@ -84,7 +79,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
             aria-label="User Profile"
           >
             <div className="w-full h-full rounded-full bg-[#FAF6F0] flex items-center justify-center overflow-hidden">
-              <span className="text-xs font-bold text-[#7C3512]">Z</span>
+              <span className="text-xs font-bold text-[#7C3512] font-serif">{initialLetter}</span>
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#9C4A1A] border-2 border-[#FFFFFF] rounded-full" />
           </button>
@@ -96,26 +91,35 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
                 className="fixed inset-0 z-40"
                 onClick={() => setIsProfileOpen(false)}
               />
-              <div className="absolute right-0 mt-2 w-52 p-1.5 bg-[#FFFFFF] border border-[#E8D8C8] rounded-xl shadow-xl shadow-stone-300/40 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-2 border-b border-[#F5EBE0]">
-                  <p className="text-sm font-semibold text-[#292524]">Personal Workspace</p>
-                  <p className="text-xs text-[#786A5E] truncate">user@zoya.ai</p>
+              <div className="absolute right-0 mt-2 w-60 p-2 bg-[#FFFFFF] border border-[#E8D8C8] rounded-2xl shadow-xl shadow-stone-300/40 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-2.5 border-b border-[#F5EBE0] bg-[#FAF6F0] rounded-xl mb-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-[#1C1917] truncate">{userName || 'Ayush'}</p>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#9C4A1A]/10 text-[#9C4A1A] font-bold">
+                      Personal
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#786A5E] truncate mt-0.5">workspace@zoya.ai</p>
                 </div>
-                <div className="py-1">
-                  <button
+
+                <div className="py-1 space-y-0.5">
+                  <Link
+                    href="/settings"
                     onClick={() => setIsProfileOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#574E45] hover:text-[#292524] hover:bg-[#FAF6F0] rounded-lg transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#574E45] hover:text-[#1C1917] hover:bg-[#FAF6F0] rounded-xl transition-colors text-left"
                   >
-                    <User className="w-3.5 h-3.5 text-[#8C7A6B]" />
-                    <span>Account Profile</span>
-                  </button>
-                  <button
+                    <Edit3 className="w-3.5 h-3.5 text-[#9C4A1A]" />
+                    <span>Edit Name & Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/settings"
                     onClick={() => setIsProfileOpen(false)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#574E45] hover:text-[#292524] hover:bg-[#FAF6F0] rounded-lg transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#574E45] hover:text-[#1C1917] hover:bg-[#FAF6F0] rounded-xl transition-colors text-left"
                   >
                     <Settings className="w-3.5 h-3.5 text-[#8C7A6B]" />
-                    <span>Settings & Audio</span>
-                  </button>
+                    <span>Settings & Personality</span>
+                  </Link>
                 </div>
               </div>
             </>

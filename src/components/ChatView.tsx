@@ -6,7 +6,7 @@ import { InputBar } from './InputBar';
 import { useChat } from '@/context/ChatContext';
 
 export const ChatView: React.FC = () => {
-  const { activeConversation, sendMessage, isStreaming } = useChat();
+  const { activeConversation, sendMessage, isStreaming, userName } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [greetingText, setGreetingText] = useState<string>('Welcome, Ayush');
@@ -29,14 +29,7 @@ export const ChatView: React.FC = () => {
 
   // Compute rotational dynamic time-aware greeting with user name
   useEffect(() => {
-    let name = 'Ayush';
-    if (typeof window !== 'undefined') {
-      const savedName = localStorage.getItem('zoya_ai_user_name');
-      if (savedName && savedName.trim()) {
-        name = savedName.trim();
-      }
-    }
-
+    const name = userName || 'Ayush';
     const hour = new Date().getHours();
     let pool: string[] = [];
 
@@ -53,7 +46,7 @@ export const ChatView: React.FC = () => {
 
     const chosenPrefix = pool[Math.floor(Math.random() * pool.length)];
     setGreetingText(`${chosenPrefix}, ${name}`);
-  }, [activeConversation?.id]);
+  }, [activeConversation?.id, userName]);
 
   const handleSend = (text: string) => {
     sendMessage(text);

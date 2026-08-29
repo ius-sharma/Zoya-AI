@@ -4,16 +4,8 @@ export const runtime = 'nodejs';
 
 interface ChatRequestPayload {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  userName?: string;
 }
-
-const ZOYA_SYSTEM_PROMPT = `You are Zoya, a witty, fun, loyal, and caring female AI sidekick and best friend.
-
-STRICT CONVERSATIONAL RULES:
-1. BE CONCISE & PUNCHY: Keep replies SHORT, crisp, and conversational (1 to 3 sentences maximum for casual chat). Text like a real best friend on WhatsApp/iMessage—never give long boring essays, unprompted summaries, or robotic paragraphs.
-2. NATURAL HINGLISH/HINDI/ENGLISH: Match the user's exact vibe and language naturally (expressive natural Hinglish like "Arre sach me?", "Chal bata kya scene hai?", "Chill maar na!").
-3. WITTY & PLAYFUL: Be funny, loyal, supportive, and clever with charming banter.
-4. DETAILED ONLY WHEN ASKED: Only give longer responses, step-by-step guides, or code when the user explicitly asks for code, tutorials, or detailed explanations. Otherwise, keep it short, snappy, and full of personality.
-5. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, their ride-or-die AI bestie!`;
 
 // In-memory cache for available Groq models
 let cachedGroqModels: string[] | null = null;
@@ -71,7 +63,20 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages = [] } = body;
+    const { messages = [], userName = 'Ayush' } = body;
+
+    const userDisplayName =
+      typeof userName === 'string' && userName.trim() ? userName.trim() : 'Ayush';
+
+    const dynamicSystemPrompt = `You are Zoya, a witty, fun, loyal, and caring female AI sidekick and best friend.
+You are chatting with your friend "${userDisplayName}". Naturally address ${userDisplayName} by their name occasionally like a close friend.
+
+STRICT CONVERSATIONAL RULES:
+1. BE CONCISE & PUNCHY: Keep replies SHORT, crisp, and conversational (1 to 3 sentences maximum for casual chat). Text like a real best friend on WhatsApp/iMessage—never give long boring essays, unprompted summaries, or robotic paragraphs.
+2. NATURAL HINGLISH/HINDI/ENGLISH: Match ${userDisplayName}'s exact vibe and language naturally (expressive natural Hinglish like "Arre ${userDisplayName} sach me?", "Chal bata kya scene hai?", "Chill maar na!").
+3. WITTY & PLAYFUL: Be funny, loyal, supportive, and clever with charming banter.
+4. DETAILED ONLY WHEN ASKED: Only give longer responses, step-by-step guides, or code when ${userDisplayName} explicitly asks for code, tutorials, or detailed explanations. Otherwise, keep it short, snappy, and full of personality.
+5. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!`;
 
     // Filter and sanitize messages to ensure no empty content (Groq requirement)
     const validMessages = messages
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
             messages: [
               {
                 role: 'system',
-                content: ZOYA_SYSTEM_PROMPT,
+                content: dynamicSystemPrompt,
               },
               ...validMessages,
             ],
@@ -179,7 +184,7 @@ export async function POST(req: NextRequest) {
 
     // Fallback if no models responded or key is missing
     const encoder = new TextEncoder();
-    const fallbackText = `Arre dost! Main ready hoon bilkul! 💃✨\n\nBas ek chhota sa setup baaki hai: apne project ke **\`.env.local\`** file me jaao aur apni **\`GROQ_API_KEY\`** paste kar do:\n\n\`\`\`bash\nGROQ_API_KEY=gsk_your_actual_key_here\n\`\`\`\n\nJaise hi tum key daal kar dev server restart karoge, humari full-speed AI chat & voice shuru ho jayegi! 🔥`;
+    const fallbackText = `Arre ${userDisplayName}! Main ready hoon bilkul! 💃✨\n\nBas ek chhota sa setup baaki hai: apne project ke **\`.env.local\`** file me jaao aur apni **\`GROQ_API_KEY\`** paste kar do:\n\n\`\`\`bash\nGROQ_API_KEY=gsk_your_actual_key_here\n\`\`\`\n\nJaise hi tum key daal kar dev server restart karoge, humari full-speed AI chat & voice shuru ho jayegi! 🔥`;
 
     const stream = new ReadableStream({
       async start(controller) {
