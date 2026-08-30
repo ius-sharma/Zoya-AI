@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { ChatView } from '@/components/ChatView';
 import { VoiceModeScreen } from '@/components/VoiceModeScreen';
 import { SettingsModal } from '@/components/SettingsModal';
+import { KnowledgeVaultModal } from '@/components/KnowledgeVaultModal';
 
 function MainApp() {
   const { voiceState } = useChat();
@@ -22,6 +23,9 @@ function MainApp() {
 
       {/* Settings Modal */}
       <SettingsModal />
+
+      {/* Knowledge Vault Modal */}
+      <KnowledgeVaultModal />
 
       {/* Voice Mode Takeover */}
       {voiceState.isOpen && <VoiceModeScreen />}

@@ -1,3 +1,36 @@
+export interface RagCitation {
+  id: string;
+  documentId: string;
+  fileName: string;
+  fileType: string;
+  pageNumber?: number;
+  chunkIndex: number;
+  snippet: string;
+  similarity: number;
+}
+
+export interface DocumentItem {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  pageCount?: number;
+  chunkCount: number;
+  uploadedAt: number;
+  status: 'indexing' | 'ready' | 'error';
+}
+
+export interface DocumentChunk {
+  id: string;
+  documentId: string;
+  fileName: string;
+  fileType: string;
+  pageNumber?: number;
+  chunkIndex: number;
+  text: string;
+  vector?: number[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -6,6 +39,7 @@ export interface Message {
   isStreaming?: boolean;
   thought?: string;
   sources?: { title: string; url?: string }[];
+  citations?: RagCitation[];
 }
 
 export interface Conversation {
@@ -47,3 +81,4 @@ export interface ProviderConfig {
   model?: string;
   customBaseUrl?: string;
 }
+

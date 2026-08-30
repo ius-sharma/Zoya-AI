@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, ChevronDown, ChevronUp, BrainCircuit, Sparkles } from 'lucide-react';
 import { Message } from '@/types/chat';
+import { SourceCitations } from './SourceCitations';
 
 interface MessageBubbleProps {
   message: Message;
@@ -179,7 +180,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         {message.isStreaming && (
           <span className="inline-block w-1.5 h-4 ml-1 bg-[#9C4A1A] dark:bg-[#D97706] animate-pulse align-middle" />
         )}
+
+        {/* Local-First Document Citations */}
+        {message.citations && message.citations.length > 0 && (
+          <SourceCitations citations={message.citations} />
+        )}
       </div>
     </div>
   );
 };
+

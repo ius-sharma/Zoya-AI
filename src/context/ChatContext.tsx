@@ -1,7 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Conversation, Message, ChatMode, VoiceState, VoiceStatus, ProviderConfig } from '@/types/chat';
+import {
+  Conversation,
+  Message,
+  ChatMode,
+  VoiceState,
+  VoiceStatus,
+  ProviderConfig,
+  DocumentItem,
+  RagCitation,
+} from '@/types/chat';
 import {
   getStoredConversations,
   saveStoredConversations,
@@ -44,6 +53,18 @@ interface ChatContextType {
   resolvedTheme: 'light' | 'dark';
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
+  // Knowledge Vault & Local RAG
+  isVaultOpen: boolean;
+  setIsVaultOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  ragEnabled: boolean;
+  setRagEnabled: (enabled: boolean) => void;
+  toggleRag: () => void;
+  documents: DocumentItem[];
+  isUploadingDocs: boolean;
+  uploadDocuments: (files: File[]) => Promise<boolean>;
+  deleteDocument: (documentId: string) => Promise<boolean>;
+  purgeAllDocuments: () => Promise<boolean>;
+  fetchDocuments: () => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -55,6 +76,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isVaultOpen, setIsVaultOpen] = useState<boolean>(false);
+  const [ragEnabled, setRagEnabledState] = useState<boolean>(true);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [isUploadingDocs, setIsUploadingDocs] = useState<boolean>(false);
+
   const [userName, setUserName] = useState<string>('Ayush');
   const [providerConfig, setProviderConfig] = useState<ProviderConfig>({
     provider: 'default',
@@ -113,7 +139,100 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setTheme(nextTheme);
   }, [resolvedTheme, setTheme]);
 
-  // Load from localStorage on mount
+  const setRagEnabled = useCallback((enabled: boolean) => {
+    setRagEnabledState(enabled);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('zoya_ai_rag_enabled', String(enabled));
+    }
+  }, []);
+
+  const toggleRag = useCallback(() => {
+    setRagEnabledState((prev) => {
+      const nextVal = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('zoya_ai_rag_enabled', String(nextVal));
+      }
+      return nextVal;
+    });
+  }, []);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/docs/list');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.documents)) {
+          setDocuments(data.documents);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch documents:', err);
+    }
+  }, []);
+
+  const uploadDocuments = useCallback(
+    async (files: File[]): Promise<boolean> => {
+      if (!files || files.length === 0) return false;
+      setIsUploadingDocs(true);
+      try {
+        const formData = new FormData();
+        files.forEach((file) => {
+          formData.append('files', file);
+        });
+
+        const res = await fetch('/api/docs/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          await fetchDocuments();
+          setIsUploadingDocs(false);
+          return true;
+        }
+      } catch (err) {
+        console.error('Document upload error:', err);
+      }
+      setIsUploadingDocs(false);
+      return false;
+    },
+    [fetchDocuments]
+  );
+
+  const deleteDocument = useCallback(
+    async (documentId: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/docs/list?id=${encodeURIComponent(documentId)}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          setDocuments((prev) => prev.filter((d) => d.id !== documentId));
+          return true;
+        }
+      } catch (err) {
+        console.error('Delete document error:', err);
+      }
+      return false;
+    },
+    []
+  );
+
+  const purgeAllDocuments = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/docs/list?purge=true', {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setDocuments([]);
+        return true;
+      }
+    } catch (err) {
+      console.error('Purge documents error:', err);
+    }
+    return false;
+  }, []);
+
+  // Load from localStorage & fetch documents on mount
   useEffect(() => {
     const savedConvos = getStoredConversations();
     const savedActiveId = getStoredActiveId();
@@ -141,6 +260,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setThemeState(initialTheme);
       applyTheme(initialTheme);
 
+      const savedRag = localStorage.getItem('zoya_ai_rag_enabled');
+      if (savedRag !== null) {
+        setRagEnabledState(savedRag === 'true');
+      }
+
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       const handleSystemChange = () => {
         const currentSaved = localStorage.getItem('zoya_ai_theme') as ThemeMode | null;
@@ -157,7 +281,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setConversations(savedConvos);
         setActiveId(savedActiveId);
       } else {
-        // Create an active draft session while keeping saved history intact
         const initialDraft = createNewConversation();
         setConversations([initialDraft, ...savedConvos]);
         setActiveId(initialDraft.id);
@@ -167,8 +290,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setConversations([initialDraft]);
       setActiveId(initialDraft.id);
     }
+
+    fetchDocuments();
     setIsLoaded(true);
-  }, [applyTheme]);
+  }, [applyTheme, fetchDocuments]);
 
   // Save only non-empty conversations to localStorage on updates
   useEffect(() => {
@@ -229,15 +354,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const createNewChat = useCallback(() => {
-    // Check if the current conversation is already an empty draft
     const currentActive = conversations.find((c) => c.id === activeId);
     if (currentActive && (!currentActive.messages || currentActive.messages.length === 0)) {
-      // Already on an empty draft, just close the sidebar
       setIsSidebarOpen(false);
       return;
     }
 
-    // Keep only conversations with messages + create one new fresh draft
     const nonEmptyOnly = conversations.filter((c) => c && c.messages && c.messages.length > 0);
     const newConvo = createNewConversation();
     setConversations([newConvo, ...nonEmptyOnly]);
@@ -246,7 +368,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [activeId, conversations]);
 
   const selectConversation = useCallback((id: string) => {
-    // When user selects a past conversation, prune any unsent empty drafts
     setConversations((prev) => {
       return prev.filter((c) => c.id === id || (c.messages && c.messages.length > 0));
     });
@@ -348,11 +469,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             userName,
             providerConfig,
             quickAction,
+            ragEnabled,
           }),
         });
 
         if (!response.ok || !response.body) {
           throw new Error('Chat API response failed');
+        }
+
+        // Check for attached RAG citations header
+        let incomingCitations: RagCitation[] | undefined;
+        const citationsHeader = response.headers.get('X-Rag-Citations');
+        if (citationsHeader) {
+          try {
+            incomingCitations = JSON.parse(decodeURIComponent(citationsHeader));
+          } catch (e) {
+            console.warn('Failed to parse citations header:', e);
+          }
         }
 
         const reader = response.body.getReader();
@@ -380,6 +513,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                           ...m,
                           content: currentContent,
                           isStreaming: true,
+                          citations: incomingCitations || m.citations,
                         }
                       : m
                   ),
@@ -397,7 +531,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               return {
                 ...c,
                 messages: c.messages.map((m) =>
-                  m.id === assistantMsgId ? { ...m, isStreaming: false } : m
+                  m.id === assistantMsgId
+                    ? {
+                        ...m,
+                        isStreaming: false,
+                        citations: incomingCitations || m.citations,
+                      }
+                    : m
                 ),
               };
             }
@@ -433,7 +573,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return fallbackText;
       }
     },
-    [activeId, conversations, userName, providerConfig]
+    [activeId, conversations, userName, providerConfig, ragEnabled]
   );
 
   return (
@@ -469,6 +609,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         resolvedTheme,
         setTheme,
         toggleTheme,
+        isVaultOpen,
+        setIsVaultOpen,
+        ragEnabled,
+        setRagEnabled,
+        toggleRag,
+        documents,
+        isUploadingDocs,
+        uploadDocuments,
+        deleteDocument,
+        purgeAllDocuments,
+        fetchDocuments,
       }}
     >
       {children}

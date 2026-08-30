@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { LLMProvider } from '@/types/chat';
+import { LLMProvider, RagCitation } from '@/types/chat';
+import { RagStore } from '@/utils/rag/store';
 
 export const runtime = 'nodejs';
 
@@ -11,6 +12,7 @@ interface ChatRequestPayload {
     apiKey?: string;
     model?: string;
   };
+  ragEnabled?: boolean;
 }
 
 // In-memory cache for available Groq models
@@ -66,20 +68,10 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages = [], userName = 'Ayush', providerConfig } = body;
+    const { messages = [], userName = 'Ayush', providerConfig, ragEnabled = true } = body;
 
     const userDisplayName =
       typeof userName === 'string' && userName.trim() ? userName.trim() : 'Ayush';
-
-    const dynamicSystemPrompt = `You are Zoya, a witty, fun, loyal, and caring female AI sidekick and best friend.
-You are chatting with your friend "${userDisplayName}". Naturally address ${userDisplayName} by their name occasionally like a close friend.
-
-STRICT CONVERSATIONAL RULES:
-1. BE CONCISE & PUNCHY: Keep replies SHORT, crisp, and conversational (1 to 3 sentences maximum for casual chat). Text like a real best friend on WhatsApp/iMessage—never give long boring essays, unprompted summaries, or robotic paragraphs.
-2. NATURAL HINGLISH/HINDI/ENGLISH: Match ${userDisplayName}'s exact vibe and language naturally (expressive natural Hinglish like "Arre ${userDisplayName} sach me?", "Chal bata kya scene hai?", "Chill maar na!").
-3. WITTY & PLAYFUL: Be funny, loyal, supportive, and clever with charming banter.
-4. DETAILED ONLY WHEN ASKED: Only give longer responses, step-by-step guides, or code when ${userDisplayName} explicitly asks for code, tutorials, or detailed explanations. Otherwise, keep it short, snappy, and full of personality.
-5. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!`;
 
     // Sanitize message history to remove any empty content
     const validMessages = messages
@@ -91,6 +83,53 @@ STRICT CONVERSATIONAL RULES:
 
     if (validMessages.length === 0) {
       return new Response('Please provide a message.', { status: 400 });
+    }
+
+    const lastUserMessage = [...validMessages].reverse().find((m) => m.role === 'user')?.content || '';
+
+    // Check Local Knowledge Vault for relevant context (RAG)
+    let ragContextBlock = '';
+    let retrievedCitations: RagCitation[] = [];
+
+    if (ragEnabled && lastUserMessage.trim()) {
+      retrievedCitations = RagStore.query(lastUserMessage, 4);
+      if (retrievedCitations.length > 0) {
+        const contextEntries = retrievedCitations.map((cit, idx) => {
+          const pageInfo = cit.pageNumber ? ` (Page ${cit.pageNumber})` : '';
+          return `[Source ${idx + 1}: ${cit.fileName}${pageInfo}]\n"${cit.snippet}"`;
+        });
+
+        ragContextBlock = `\n\n=== 📂 LOCAL KNOWLEDGE VAULT (USER'S PRIVATE DOCUMENTS) ===
+The following exact excerpts were retrieved from ${userDisplayName}'s local files. Use them to answer their question accurately.
+
+${contextEntries.join('\n\n')}
+
+STRICT LOCAL-RAG INSTRUCTIONS:
+1. Ground your answer in the provided Local Knowledge Vault excerpts whenever relevant.
+2. Explicitly cite the document name and page number (e.g. "According to your DBMS_Notes.pdf (Page 12)...") so ${userDisplayName} knows exactly where the answer comes from.
+3. Maintain your signature witty, warm, supportive best-friend persona while providing precise answers.`;
+      }
+    }
+
+    const dynamicSystemPrompt = `You are Zoya, a witty, fun, loyal, and caring female AI sidekick and best friend.
+You are chatting with your friend "${userDisplayName}". Naturally address ${userDisplayName} by their name occasionally like a close friend.
+
+STRICT CONVERSATIONAL RULES:
+1. BE CONCISE & PUNCHY: Keep replies SHORT, crisp, and conversational (1 to 3 sentences maximum for casual chat). Text like a real best friend on WhatsApp/iMessage—never give long boring essays, unprompted summaries, or robotic paragraphs.
+2. NATURAL HINGLISH/HINDI/ENGLISH: Match ${userDisplayName}'s exact vibe and language naturally (expressive natural Hinglish like "Arre ${userDisplayName} sach me?", "Chal bata kya scene hai?", "Chill maar na!").
+3. WITTY & PLAYFUL: Be funny, loyal, supportive, and clever with charming banter.
+4. DETAILED ONLY WHEN ASKED: Only give longer responses, step-by-step guides, code, or document analysis when ${userDisplayName} explicitly asks for details or queries their local documents.
+5. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!${ragContextBlock}`;
+
+    // Base headers with attached citations metadata
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    };
+
+    if (retrievedCitations.length > 0) {
+      responseHeaders['X-Rag-Citations'] = encodeURIComponent(JSON.stringify(retrievedCitations));
     }
 
     const provider = providerConfig?.provider || 'default';
@@ -160,13 +199,7 @@ STRICT CONVERSATIONAL RULES:
           },
         });
 
-        return new Response(clientStream, {
-          headers: {
-            'Content-Type': 'text/plain; charset=utf-8',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive',
-          },
-        });
+        return new Response(clientStream, { headers: responseHeaders });
       }
     }
 
@@ -185,13 +218,13 @@ STRICT CONVERSATIONAL RULES:
             { role: 'system', content: dynamicSystemPrompt },
             ...validMessages,
           ],
-          temperature: 0.8,
+          temperature: 0.7,
           stream: true,
         }),
       });
 
       if (res.ok && res.body) {
-        return createOpenAICompatibleStream(res.body);
+        return createOpenAICompatibleStream(res.body, responseHeaders);
       }
     }
 
@@ -212,14 +245,14 @@ STRICT CONVERSATIONAL RULES:
               { role: 'system', content: dynamicSystemPrompt },
               ...validMessages,
             ],
-            temperature: 0.8,
+            temperature: 0.7,
             stream: true,
           }),
         }
       );
 
       if (res.ok && res.body) {
-        return createOpenAICompatibleStream(res.body);
+        return createOpenAICompatibleStream(res.body, responseHeaders);
       }
     }
 
@@ -238,13 +271,13 @@ STRICT CONVERSATIONAL RULES:
             { role: 'system', content: dynamicSystemPrompt },
             ...validMessages,
           ],
-          temperature: 0.8,
+          temperature: 0.7,
           stream: true,
         }),
       });
 
       if (res.ok && res.body) {
-        return createOpenAICompatibleStream(res.body);
+        return createOpenAICompatibleStream(res.body, responseHeaders);
       }
     }
 
@@ -265,8 +298,8 @@ STRICT CONVERSATIONAL RULES:
               },
               ...validMessages,
             ],
-            temperature: 0.85,
-            max_tokens: 700,
+            temperature: 0.75,
+            max_tokens: 800,
             stream: true,
           };
 
@@ -280,7 +313,7 @@ STRICT CONVERSATIONAL RULES:
           });
 
           if (groqResponse.ok && groqResponse.body) {
-            return createOpenAICompatibleStream(groqResponse.body);
+            return createOpenAICompatibleStream(groqResponse.body, responseHeaders);
           }
         } catch (err) {
           console.warn(`Default Groq model ${model} fetch failed:`, err);
@@ -304,12 +337,7 @@ STRICT CONVERSATIONAL RULES:
       },
     });
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache',
-      },
-    });
+    return new Response(stream, { headers: responseHeaders });
   } catch (err) {
     console.error('API /api/chat error:', err);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
@@ -320,7 +348,14 @@ STRICT CONVERSATIONAL RULES:
 }
 
 // Helper to stream OpenAI-compatible SSE events
-function createOpenAICompatibleStream(readableBody: ReadableStream<Uint8Array>) {
+function createOpenAICompatibleStream(
+  readableBody: ReadableStream<Uint8Array>,
+  headers: Record<string, string> = {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  }
+) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   const reader = readableBody.getReader();
@@ -363,11 +398,5 @@ function createOpenAICompatibleStream(readableBody: ReadableStream<Uint8Array>) 
     },
   });
 
-  return new Response(clientStream, {
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  });
+  return new Response(clientStream, { headers });
 }

@@ -17,7 +17,7 @@ const ROTATING_PLACEHOLDERS = [
 ];
 
 export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = false }) => {
-  const { openVoiceMode, isStreaming, activeId } = useChat();
+  const { openVoiceMode, isStreaming, activeId, setIsVaultOpen, documents, ragEnabled } = useChat();
   const [input, setInput] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -99,16 +99,38 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
 
         {/* Bottom Integrated Dock */}
         <div className="flex items-center justify-between px-3.5 pb-2.5 pt-1">
-          {/* Left: Attachment Button */}
-          <div className="flex items-center gap-1">
+          {/* Left: Attachment & Knowledge Vault Pill */}
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              className="flex items-center justify-center w-7 h-7 rounded-full text-[#8C7A6B] dark:text-[#A89F91] hover:text-[#292524] dark:hover:text-[#FAF6F0] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] transition-colors"
-              title="Attach document or image (Coming soon)"
-              aria-label="Attach file"
+              onClick={() => setIsVaultOpen(true)}
+              className={`flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+                documents.length > 0 && ragEnabled
+                  ? 'text-[#9C4A1A] dark:text-[#D97706] bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 hover:bg-[#9C4A1A]/20'
+                  : 'text-[#8C7A6B] dark:text-[#A89F91] hover:text-[#292524] dark:hover:text-[#FAF6F0] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E]'
+              }`}
+              title="Knowledge Vault (Upload notes/PDFs for local RAG)"
+              aria-label="Open Knowledge Vault"
             >
               <Paperclip className="w-3.5 h-3.5" />
             </button>
+
+            {/* Quick Vault Status Badge */}
+            {documents.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsVaultOpen(true)}
+                className={`hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+                  ragEnabled
+                    ? 'bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 text-[#9C4A1A] dark:text-[#D97706] hover:bg-[#9C4A1A]/20'
+                    : 'bg-[#FAF6F0] dark:bg-[#26221E] text-[#8C7A6B] dark:text-[#786A5E] border border-[#E8D8C8] dark:border-[#38302A]'
+                }`}
+                title="Click to manage Knowledge Vault"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>{documents.length} {documents.length === 1 ? 'Doc' : 'Docs'} Vault {ragEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+            )}
           </div>
 
           {/* Right Dock: Voice Mode Mic + Dedicated Send Arrow Button */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Plus, MessageSquare, Trash2, X, Clock, Settings } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, X, Clock, Settings, Database } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 import { formatRelativeTime } from '@/utils/storage';
 
@@ -15,6 +15,8 @@ export const Sidebar: React.FC = () => {
     isSidebarOpen,
     setIsSidebarOpen,
     setIsSettingsOpen,
+    setIsVaultOpen,
+    documents,
   } = useChat();
 
   // Only display conversations that have actual messages sent (ignoring empty drafts)
@@ -122,6 +124,23 @@ export const Sidebar: React.FC = () => {
 
         {/* Footer */}
         <div className="p-3 border-t border-[#E0D0BE] dark:border-[#2E2722] bg-[#FAF6F0] dark:bg-[#141210] space-y-2">
+          {/* Knowledge Vault Button */}
+          <button
+            onClick={() => {
+              setIsSidebarOpen(false);
+              setIsVaultOpen(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] hover:bg-[#EFE6DD] dark:hover:bg-[#26221E] rounded-xl transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+              <span>Knowledge Vault</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 text-[#9C4A1A] dark:text-[#D97706] font-bold">
+              {documents.length} Docs
+            </span>
+          </button>
+
           <button
             onClick={() => {
               setIsSidebarOpen(false);
@@ -130,7 +149,7 @@ export const Sidebar: React.FC = () => {
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] hover:bg-[#EFE6DD] dark:hover:bg-[#26221E] rounded-xl transition-colors"
           >
             <div className="flex items-center gap-2">
-              <Settings className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+              <Settings className="w-4 h-4 text-[#8C7A6B] dark:text-[#A89F91]" />
               <span>Settings & Appearance</span>
             </div>
             <span className="text-[10px] text-[#8C7A6B] dark:text-[#786A5E] font-normal">Theme</span>
