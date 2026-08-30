@@ -492,6 +492,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const decoder = new TextDecoder();
         let accumulatedText = '';
 
+        // Helper: parse <think>...</think> from accumulated raw text
+        const parseThinkBlock = (raw: string): { thought: string; content: string } => {
+          // Check for <think>...</think> block
+          const thinkOpenTag = '<think>';
+          const thinkCloseTag = '</think>';
+          const openIdx = raw.indexOf(thinkOpenTag);
+          if (openIdx === -1) {
+            return { thought: '', content: raw };
+          }
+          const closeIdx = raw.indexOf(thinkCloseTag);
+          if (closeIdx === -1) {
+            // Still streaming inside <think> block — hide everything after <think>
+            const beforeThink = raw.substring(0, openIdx).trim();
+            const insideThink = raw.substring(openIdx + thinkOpenTag.length).trim();
+            return { thought: insideThink, content: beforeThink };
+          }
+          // Both tags found — extract thought and clean content
+          const thoughtText = raw.substring(openIdx + thinkOpenTag.length, closeIdx).trim();
+          const afterThink = raw.substring(closeIdx + thinkCloseTag.length).trim();
+          const beforeThink = raw.substring(0, openIdx).trim();
+          const cleanContent = (beforeThink + (beforeThink && afterThink ? '\n' : '') + afterThink).trim();
+          return { thought: thoughtText, content: cleanContent };
+        };
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -499,7 +523,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const chunk = decoder.decode(value, { stream: true });
           accumulatedText += chunk;
 
-          const currentContent = accumulatedText;
+          const parsed = parseThinkBlock(accumulatedText);
 
           // Update active conversation assistant message in-place
           setConversations((prev) =>
@@ -511,7 +535,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                     m.id === assistantMsgId
                       ? {
                           ...m,
-                          content: currentContent,
+                          content: parsed.content,
+                          thought: parsed.thought || m.thought,
                           isStreaming: true,
                           citations: incomingCitations || m.citations,
                         }
@@ -524,7 +549,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        // Finalize streaming
+        // Finalize streaming — do final think-block parse
+        const finalParsed = parseThinkBlock(accumulatedText);
+
         setConversations((prev) =>
           prev.map((c) => {
             if (c.id === currentConvoId) {
@@ -534,6 +561,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   m.id === assistantMsgId
                     ? {
                         ...m,
+                        content: finalParsed.content,
+                        thought: finalParsed.thought || m.thought,
                         isStreaming: false,
                         citations: incomingCitations || m.citations,
                       }
@@ -546,7 +575,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         );
 
         setIsStreaming(false);
-        return accumulatedText;
+        return finalParsed.content;
       } catch (err) {
         console.error('Error sending message:', err);
         const fallbackText = "Arre dost, connection me thodi issue aayi. Ek baar refresh karke dubara bhejo!";

@@ -138,8 +138,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
           ),
 
           // Lists
-          ul: ({ children }) => <ul className="my-2.5 pl-1 space-y-1.5">{children}</ul>,
-          ol: ({ children }) => <ol className="my-2.5 pl-1 space-y-2 list-decimal list-inside">{children}</ol>,
+          ul: ({ children }) => <ul className="my-2.5 pl-6 space-y-1 list-disc text-[#292524] dark:text-[#FAF6F0]">{children}</ul>,
+          ol: ({ children }) => <ol className="my-2.5 pl-6 space-y-1.5 list-decimal text-[#292524] dark:text-[#FAF6F0]">{children}</ol>,
           li: ({ children, ...props }) => (
             <li className="leading-relaxed text-[#292524] dark:text-[#FAF6F0] my-0.5" {...props}>
               {children}
