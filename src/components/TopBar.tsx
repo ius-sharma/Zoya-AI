@@ -98,29 +98,8 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
         </div>
       </div>
 
-      {/* Right side: Knowledge Vault quick trigger + User Profile with Merged Theme Switcher */}
+      {/* Right side: User Profile with Merged Theme Switcher */}
       <div className="flex items-center gap-2">
-        {/* Quick Knowledge Vault Trigger */}
-        <button
-          type="button"
-          onClick={() => setIsVaultOpen(true)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-            documents.length > 0 && ragEnabled
-              ? 'bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 border-[#9C4A1A]/30 dark:border-[#D97706]/30 text-[#9C4A1A] dark:text-[#D97706] hover:bg-[#9C4A1A]/20'
-              : 'bg-[#FAF6F0] dark:bg-[#1C1917] border-[#E8D8C8] dark:border-[#2E2722] text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
-          }`}
-          title="Open Knowledge Vault (Local RAG)"
-          aria-label="Open Knowledge Vault"
-        >
-          <Database className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
-          <span className="hidden sm:inline">Vault</span>
-          {documents.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-[#9C4A1A] dark:bg-[#D97706] text-white text-[10px] font-bold">
-              {documents.length}
-            </span>
-          )}
-        </button>
-
         {/* Profile Avatar */}
         <div className="relative">
           <button

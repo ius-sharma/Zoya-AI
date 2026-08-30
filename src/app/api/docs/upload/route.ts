@@ -2,32 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DocumentItem, DocumentChunk } from '@/types/chat';
 import { chunkText } from '@/utils/rag/chunker';
 import { RagStore } from '@/utils/rag/store';
+import { extractText as extractPdfText } from 'unpdf';
 import mammoth from 'mammoth';
 
 export const runtime = 'nodejs';
 
-// Helper to safely parse PDF buffers
-async function parsePdfBuffer(buffer: Buffer): Promise<{ text: string; numpages: number }> {
+// Safe PDF Parser powered by Mozilla PDF.js (unpdf)
+async function parsePdfBuffer(
+  buffer: Uint8Array
+): Promise<{ pages: Array<{ pageNumber: number; text: string }>; totalPages: number }> {
   try {
-    // Dynamic import to prevent bundler issues with pdf-parse in Next.js
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    return {
-      text: data.text || '',
-      numpages: data.numpages || 1,
-    };
+    const result = await extractPdfText(buffer);
+    const rawText: unknown = result.text;
+    const totalPages =
+      result.totalPages || (Array.isArray(rawText) ? rawText.length : 1);
+
+    if (Array.isArray(rawText)) {
+      const pages = rawText
+        .map((pageText, idx) => ({
+          pageNumber: idx + 1,
+          text: typeof pageText === 'string' ? pageText.trim() : '',
+        }))
+        .filter((p) => p.text.length > 0);
+      return { pages, totalPages };
+    } else if (typeof rawText === 'string' && rawText.trim().length > 0) {
+      return { pages: [{ pageNumber: 1, text: rawText.trim() }], totalPages };
+    }
   } catch (err) {
-    console.error('PDF parsing error:', err);
-    // Fallback: extract ASCII strings from buffer
-    const rawString = buffer.toString('binary');
-    const matches = rawString.match(/\(([^)]+)\)/g) || [];
-    const text = matches.map((m) => m.slice(1, -1)).join(' ');
-    return { text: text.trim() || 'Failed to extract text from PDF.', numpages: 1 };
+    console.error('unpdf extraction error:', err);
   }
+  return { pages: [], totalPages: 1 };
 }
 
-// Helper to safely parse DOCX buffers
+// Safe DOCX Parser
 async function parseDocxBuffer(buffer: Buffer): Promise<string> {
   try {
     const result = await mammoth.extractRawText({ buffer });
@@ -53,50 +60,77 @@ export async function POST(req: NextRequest) {
       const fileName = file.name;
       const fileSize = file.size;
       const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
-      const documentId = 'doc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+      const documentId =
+        'doc_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
 
       const arrayBuffer = await file.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
       const buffer = Buffer.from(arrayBuffer);
 
-      let extractedText = '';
-      let pageCount = 1;
+      const chunks: DocumentChunk[] = [];
+      let totalPagesCount = 1;
 
       if (fileExt === 'pdf') {
-        const pdfResult = await parsePdfBuffer(buffer);
-        extractedText = pdfResult.text;
-        pageCount = pdfResult.numpages;
+        const { pages, totalPages } = await parsePdfBuffer(uint8);
+        totalPagesCount = totalPages || 1;
+
+        if (pages.length > 0) {
+          pages.forEach((page) => {
+            const pageChunks = chunkText(
+              page.text,
+              {
+                documentId,
+                fileName,
+                fileType: 'pdf',
+                pageNumber: page.pageNumber,
+              },
+              { chunkSize: 650, chunkOverlap: 120 }
+            );
+            chunks.push(...pageChunks);
+          });
+        }
       } else if (fileExt === 'docx') {
-        extractedText = await parseDocxBuffer(buffer);
+        const extractedText = await parseDocxBuffer(buffer);
+        if (extractedText.trim()) {
+          const docxChunks = chunkText(
+            extractedText,
+            {
+              documentId,
+              fileName,
+              fileType: 'docx',
+            },
+            { chunkSize: 650, chunkOverlap: 120 }
+          );
+          chunks.push(...docxChunks);
+        }
       } else {
         // Plain text, Markdown, Source Code, JSON, CSV
-        extractedText = buffer.toString('utf-8');
+        const extractedText = buffer.toString('utf-8');
+        if (extractedText.trim()) {
+          const textChunks = chunkText(
+            extractedText,
+            {
+              documentId,
+              fileName,
+              fileType: fileExt || 'txt',
+            },
+            { chunkSize: 650, chunkOverlap: 120 }
+          );
+          chunks.push(...textChunks);
+        }
       }
 
-      if (!extractedText || !extractedText.trim()) {
+      if (chunks.length === 0) {
+        console.warn(`No text could be extracted from ${fileName}`);
         continue;
       }
-
-      // Chunk the text
-      const chunks: DocumentChunk[] = chunkText(
-        extractedText,
-        {
-          documentId,
-          fileName,
-          fileType: fileExt || 'txt',
-          pageNumber: pageCount > 1 ? 1 : undefined,
-        },
-        {
-          chunkSize: 650,
-          chunkOverlap: 120,
-        }
-      );
 
       const docItem: DocumentItem = {
         id: documentId,
         fileName,
         fileType: fileExt,
         fileSize,
-        pageCount: pageCount > 1 ? pageCount : undefined,
+        pageCount: totalPagesCount > 1 ? totalPagesCount : undefined,
         chunkCount: chunks.length,
         uploadedAt: Date.now(),
         status: 'ready',

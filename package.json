@@ -22,8 +22,11 @@
     "postprocessing": "^6.39.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.6.0",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

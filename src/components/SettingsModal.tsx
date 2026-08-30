@@ -1,7 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Sparkles, Check, Trash2, Volume2, ShieldCheck, Sun, Moon } from 'lucide-react';
+import {
+  X,
+  User,
+  Sparkles,
+  Check,
+  Trash2,
+  Volume2,
+  ShieldCheck,
+  Sun,
+  Moon,
+  Database,
+  ExternalLink,
+  ToggleLeft,
+  ToggleRight,
+  FileText,
+} from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 export const SettingsModal: React.FC = () => {
@@ -13,11 +28,16 @@ export const SettingsModal: React.FC = () => {
     conversations,
     theme,
     setTheme,
+    setIsVaultOpen,
+    documents,
+    ragEnabled,
+    toggleRag,
+    purgeAllDocuments,
   } = useChat();
 
   const [tempName, setTempName] = useState(userName);
   const [isSaved, setIsSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'voice' | 'data'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'vault' | 'voice' | 'data'>('profile');
 
   useEffect(() => {
     setTempName(userName);
@@ -64,7 +84,7 @@ export const SettingsModal: React.FC = () => {
             </div>
             <div>
               <h2 className="font-bold text-base text-[#1C1917] dark:text-[#FAF6F0] tracking-tight">Settings & Profile</h2>
-              <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">Customize your persona and appearance</p>
+              <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">Customize your persona and preferences</p>
             </div>
           </div>
           <button
@@ -100,6 +120,18 @@ export const SettingsModal: React.FC = () => {
           >
             <Sun className="w-3.5 h-3.5" />
             <span>Appearance</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('vault')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-xl transition-all border-b-2 shrink-0 ${
+              activeTab === 'vault'
+                ? 'border-[#9C4A1A] text-[#9C4A1A] dark:text-[#D97706] bg-[#FFFFFF] dark:bg-[#1C1917]'
+                : 'border-transparent text-[#786A5E] dark:text-[#A89F91] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5" />
+            <span>Knowledge Vault</span>
           </button>
 
           <button
@@ -158,44 +190,31 @@ export const SettingsModal: React.FC = () => {
                     value={tempName}
                     onChange={(e) => setTempName(e.target.value)}
                     placeholder="Enter your name (e.g. Ayush)"
-                    maxLength={30}
-                    className="w-full px-4 py-3 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#A89F91] dark:placeholder-[#6E645A] text-sm font-medium focus:outline-none focus:border-[#9C4A1A] focus:ring-1 focus:ring-[#9C4A1A]/30 transition-all"
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] text-sm text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#A89F91] focus:outline-none focus:ring-2 focus:ring-[#9C4A1A]/30 focus:border-[#9C4A1A] transition-all"
                   />
+                  {isSaved && (
+                    <span className="absolute right-3 top-2.5 flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 animate-in fade-in">
+                      <Check className="w-3.5 h-3.5" />
+                      Saved
+                    </span>
+                  )}
                 </div>
-                <p className="text-[11px] text-[#786A5E] dark:text-[#8C7A6B]">
-                  Zoya will use this name in greetings, friendly chats, and voice conversations.
-                </p>
               </div>
 
-              {/* Save Button */}
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#9C4A1A] via-[#B85D19] to-[#7C3512] hover:from-[#B85D19] hover:to-[#8B3A0F] text-white text-xs font-bold rounded-xl shadow-md shadow-[#9C4A1A]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  {isSaved ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-300" />
-                      <span>Saved!</span>
-                    </>
-                  ) : (
-                    <span>Save Name</span>
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-[#9C4A1A] hover:bg-[#803810] text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-[#9C4A1A]/20"
+              >
+                Save Profile
+              </button>
             </form>
           )}
 
           {/* Appearance Tab */}
           {activeTab === 'appearance' && (
             <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-[#1C1917] dark:text-[#FAF6F0]">Color Theme & Display</h3>
-                <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">Select your preferred visual mode for Zoya.</p>
-              </div>
-
               <div className="grid grid-cols-2 gap-3">
-                {/* Bright Mode Card */}
+                {/* Light Mode Card */}
                 <button
                   type="button"
                   onClick={() => setTheme('light')}
@@ -252,6 +271,70 @@ export const SettingsModal: React.FC = () => {
             </div>
           )}
 
+          {/* Knowledge Vault Tab */}
+          {activeTab === 'vault' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Knowledge Vault Retrieval (RAG)</h4>
+                    <p className="text-[11px] text-[#786A5E] dark:text-[#A89F91]">
+                      Search across your local PDFs, notes, and code files
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleRag}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      ragEnabled
+                        ? 'bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 border-[#9C4A1A]/30 dark:border-[#D97706]/30 text-[#9C4A1A] dark:text-[#D97706]'
+                        : 'bg-[#FAF6F0] dark:bg-[#26221E] border-[#E8D8C8] dark:border-[#38302A] text-[#786A5E] dark:text-[#8C7A6B]'
+                    }`}
+                  >
+                    {ragEnabled ? (
+                      <>
+                        <ToggleRight className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+                        <span>Active</span>
+                      </>
+                    ) : (
+                      <>
+                        <ToggleLeft className="w-4 h-4 text-[#786A5E] dark:text-[#8C7A6B]" />
+                        <span>Paused</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Indexed Documents</h4>
+                  <p className="text-[11px] text-[#786A5E] dark:text-[#A89F91]">
+                    {documents.length} document(s) • {documents.reduce((acc, d) => acc + d.chunkCount, 0)} chunks ready
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsVaultOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[#9C4A1A] hover:bg-[#803810] text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                >
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Manage Files</span>
+                </button>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB]">
+                  <strong>100% Privacy Guarantee:</strong> Your files never leave this machine. Chunks & vectors stay locally in your private workspace.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Voice Tab */}
           {activeTab === 'voice' && (
             <div className="space-y-4">
@@ -296,8 +379,29 @@ export const SettingsModal: React.FC = () => {
                 </button>
               </div>
 
+              <div className="p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Purge Knowledge Vault</h4>
+                  <p className="text-[11px] text-[#786A5E] dark:text-[#A89F91]">
+                    {documents.length} document(s) in local vector store
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('Delete all indexed documents from Knowledge Vault?')) {
+                      purgeAllDocuments();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Purge Vault</span>
+                </button>
+              </div>
+
               <p className="text-[11px] text-[#786A5E] dark:text-[#8C7A6B] px-1">
-                All conversations are stored locally on your device in Private Storage. No user data is sold or shared.
+                All conversations and documents are stored locally on your device in Private Storage. No user data is sold or shared.
               </p>
             </div>
           )}

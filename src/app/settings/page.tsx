@@ -20,8 +20,14 @@ import {
   EyeOff,
   ExternalLink,
   Zap,
+  Database,
+  ToggleLeft,
+  ToggleRight,
+  FileText,
+  UploadCloud,
+  Loader2,
 } from 'lucide-react';
-import { LLMProvider, ProviderConfig } from '@/types/chat';
+import { LLMProvider, ProviderConfig, DocumentItem } from '@/types/chat';
 import {
   getStoredConversations,
   saveStoredConversations,
@@ -148,7 +154,7 @@ const PROVIDER_KEY_LINKS: Record<LLMProvider, { name: string; url: string; prefi
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'persona' | 'voice' | 'model' | 'data'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'model' | 'vault' | 'persona' | 'voice' | 'data'>('profile');
   const [userName, setUserName] = useState<string>('Ayush');
   const [userBio, setUserBio] = useState<string>('');
   const [relationshipStyle, setRelationshipStyle] = useState<string>('bestie');
@@ -158,6 +164,11 @@ export default function SettingsPage() {
   const [autoListen, setAutoListen] = useState<boolean>(true);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [totalChatsCount, setTotalChatsCount] = useState<number>(0);
+
+  // Knowledge Vault & Local RAG State
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [ragEnabled, setRagEnabled] = useState<boolean>(true);
+  const [isUploadingDocs, setIsUploadingDocs] = useState<boolean>(false);
 
   // LLM Provider & BYOK State
   const [selectedProvider, setSelectedProvider] = useState<LLMProvider>('default');
@@ -175,7 +186,67 @@ export default function SettingsPage() {
   });
   const [showKey, setShowKey] = useState<boolean>(false);
 
+  const fetchDocuments = async () => {
+    try {
+      const res = await fetch('/api/docs/list');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.documents)) setDocuments(data.documents);
+      }
+    } catch (e) {
+      console.warn('Failed to load docs in settings:', e);
+    }
+  };
+
+  const handleUploadFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingDocs(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).forEach((f) => fd.append('files', f));
+      const res = await fetch('/api/docs/upload', { method: 'POST', body: fd });
+      if (res.ok) {
+        await fetchDocuments();
+      }
+    } catch (e) {
+      console.error('Upload error in settings:', e);
+    }
+    setIsUploadingDocs(false);
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    try {
+      const res = await fetch(`/api/docs/list?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (res.ok) {
+        setDocuments((prev) => prev.filter((d) => d.id !== id));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePurgeAllDocs = async () => {
+    if (window.confirm('Are you sure you want to delete all indexed documents from your Knowledge Vault?')) {
+      try {
+        const res = await fetch('/api/docs/list?purge=true', { method: 'DELETE' });
+        if (res.ok) {
+          setDocuments([]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   // Load stored settings on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedRag = localStorage.getItem('zoya_ai_rag_enabled');
+      if (savedRag !== null) setRagEnabled(savedRag === 'true');
+      fetchDocuments();
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedName = localStorage.getItem('zoya_ai_user_name');
@@ -370,6 +441,23 @@ export default function SettingsPage() {
               <div className="flex flex-col">
                 <span>LLM Providers & Keys</span>
                 <span className="text-[10px] text-[#8C7A6B] dark:text-[#786A5E] font-normal">OpenAI, Claude, Gemini, Groq</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('vault')}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all text-left ${
+                activeTab === 'vault'
+                  ? 'bg-[#FAF6F0] dark:bg-[#26221E] text-[#9C4A1A] dark:text-[#FAF6F0] border border-[#E8D8C8] dark:border-[#38302A] shadow-xs'
+                  : 'text-[#574E45] dark:text-[#A89F91] hover:bg-[#FAF6F0] dark:hover:bg-[#241F1C] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
+              }`}
+            >
+              <Database className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+              <div className="flex flex-col">
+                <span>Knowledge Vault (Local RAG)</span>
+                <span className="text-[10px] text-[#8C7A6B] dark:text-[#786A5E] font-normal">
+                  {documents.length} doc(s) • Local vector search
+                </span>
               </div>
             </button>
 
@@ -678,6 +766,163 @@ export default function SettingsPage() {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Knowledge Vault (Local RAG) Tab */}
+            {activeTab === 'vault' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-bold text-[#1C1917] dark:text-[#FAF6F0] tracking-tight">
+                    Knowledge Vault (Local RAG)
+                  </h2>
+                  <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">
+                    Manage local documents for private Q&A with exact source & page citations.
+                  </p>
+                </div>
+
+                {/* Master RAG Toggle Card */}
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FAF6F0] dark:bg-[#26221E] border border-[#E8D8C8] dark:border-[#38302A]">
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Vault Retrieval (RAG)</h4>
+                    <p className="text-[11px] text-[#786A5E] dark:text-[#8C7A6B]">
+                      When active, Zoya automatically searches your local documents for relevant context.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !ragEnabled;
+                      setRagEnabled(next);
+                      if (typeof window !== 'undefined') {
+                        localStorage.setItem('zoya_ai_rag_enabled', String(next));
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                      ragEnabled
+                        ? 'bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 border-[#9C4A1A]/30 dark:border-[#D97706]/30 text-[#9C4A1A] dark:text-[#D97706]'
+                        : 'bg-[#FAF6F0] dark:bg-[#26221E] border-[#E8D8C8] dark:border-[#38302A] text-[#786A5E] dark:text-[#8C7A6B]'
+                    }`}
+                  >
+                    {ragEnabled ? (
+                      <>
+                        <ToggleRight className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+                        <span>Active</span>
+                      </>
+                    ) : (
+                      <>
+                        <ToggleLeft className="w-4 h-4 text-[#786A5E] dark:text-[#8C7A6B]" />
+                        <span>Paused</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Upload Box */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB]">
+                    Upload Local Documents
+                  </label>
+                  <label className="relative flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed border-[#E0D0BE] dark:border-[#38302A] rounded-2xl cursor-pointer bg-[#FAF6F0]/60 dark:bg-[#141210]/60 hover:bg-[#FAF6F0] dark:hover:bg-[#141210] hover:border-[#9C4A1A]/40 transition-all">
+                    <input
+                      type="file"
+                      multiple
+                      accept=".pdf,.docx,.txt,.md,.py,.js,.ts,.tsx,.jsx,.json,.csv"
+                      onChange={(e) => {
+                        if (e.target.files) handleUploadFiles(e.target.files);
+                      }}
+                      className="hidden"
+                    />
+
+                    {isUploadingDocs ? (
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <Loader2 className="w-7 h-7 text-[#9C4A1A] dark:text-[#D97706] animate-spin" />
+                        <span className="text-xs font-semibold text-[#1C1917] dark:text-[#FAF6F0]">
+                          Indexing documents with local embeddings...
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-center">
+                        <div className="p-3 rounded-full bg-[#F5EBE0] dark:bg-[#26221E] text-[#9C4A1A] dark:text-[#D97706]">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">
+                            Click or drag files here to index into Knowledge Vault
+                          </p>
+                          <p className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B]">
+                            Supports .pdf, .docx, .txt, .md, .py, .js, .json
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Documents List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB]">
+                      Indexed Documents ({documents.length})
+                    </span>
+                    {documents.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handlePurgeAllDocs}
+                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Purge All</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {documents.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]">
+                      <FileText className="w-6 h-6 mx-auto text-[#A89F91] dark:text-[#574E45] mb-1.5" />
+                      <p className="text-xs font-semibold text-[#574E45] dark:text-[#C5B8AB]">No documents in vault yet.</p>
+                      <p className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B]">Upload your notes or PDFs above to get started.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map((doc: DocumentItem) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center justify-between p-3 rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <FileText className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] truncate">
+                                {doc.fileName}
+                              </span>
+                              <span className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B]">
+                                {doc.chunkCount} chunks {doc.pageCount ? `• ${doc.pageCount} pages` : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDoc(doc.id)}
+                            className="p-1.5 text-[#8C7A6B] hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-colors shrink-0"
+                            title="Delete document"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Privacy Badge */}
+                <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]">
+                  <ShieldCheck className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                  <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB]">
+                    <strong>100% Privacy Guarantee:</strong> Your files never leave this machine. Chunks & vectors stay locally in your private workspace.
+                  </p>
                 </div>
               </div>
             )}
