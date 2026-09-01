@@ -344,7 +344,7 @@ export const SettingsModal: React.FC = () => {
                 {/* Light Mode Card */}
                 <button
                   type="button"
-                  onClick={() => setTheme('light')}
+                  onClick={(e) => setTheme('light', e)}
                   className={`flex flex-col items-start p-4 rounded-2xl border text-left transition-all relative ${
                     theme === 'light'
                       ? 'bg-[#FFFFFF] dark:bg-[#1C1917] border-[#9C4A1A] shadow-md ring-1 ring-[#9C4A1A]/30'
@@ -368,7 +368,7 @@ export const SettingsModal: React.FC = () => {
                 {/* Dark Mode Card */}
                 <button
                   type="button"
-                  onClick={() => setTheme('dark')}
+                  onClick={(e) => setTheme('dark', e)}
                   className={`flex flex-col items-start p-4 rounded-2xl border text-left transition-all relative ${
                     theme === 'dark'
                       ? 'bg-[#FFFFFF] dark:bg-[#1C1917] border-[#9C4A1A] shadow-md ring-1 ring-[#9C4A1A]/30'

@@ -67,8 +67,8 @@ interface ChatContextType {
   updateProviderConfig: (config: ProviderConfig) => void;
   theme: ThemeMode;
   resolvedTheme: 'light' | 'dark';
-  setTheme: (theme: ThemeMode) => void;
-  toggleTheme: () => void;
+  setTheme: (theme: ThemeMode, event?: React.MouseEvent | MouseEvent | { clientX: number; clientY: number }) => void;
+  toggleTheme: (event?: React.MouseEvent | MouseEvent | { clientX: number; clientY: number }) => void;
   // Knowledge Vault & Local RAG
   isVaultOpen: boolean;
   setIsVaultOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -152,20 +152,80 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setTheme = useCallback(
-    (newTheme: ThemeMode) => {
+    (
+      newTheme: ThemeMode,
+      event?: React.MouseEvent | MouseEvent | { clientX: number; clientY: number }
+    ) => {
       setThemeState(newTheme);
       if (typeof window !== 'undefined') {
         localStorage.setItem('zoya_ai_theme', newTheme);
       }
-      applyTheme(newTheme);
+
+      // Check if View Transitions API is supported and user doesn't request reduced motion
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      const doc = typeof document !== 'undefined' ? (document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } }) : null;
+
+      if (doc && typeof doc.startViewTransition === 'function' && !prefersReducedMotion) {
+        // Calculate transition origin coordinates from click or default to top-right corner
+        let x = typeof window !== 'undefined' ? window.innerWidth - 48 : 48;
+        let y = 48;
+        if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number' && event.clientX > 0) {
+          x = event.clientX;
+          y = event.clientY;
+        }
+
+        const endRadius = typeof window !== 'undefined'
+          ? Math.hypot(
+              Math.max(x, window.innerWidth - x),
+              Math.max(y, window.innerHeight - y)
+            )
+          : 1000;
+
+        const transition = doc.startViewTransition(() => {
+          applyTheme(newTheme);
+        });
+
+        transition.ready.then(() => {
+          document.documentElement.animate(
+            {
+              clipPath: [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`,
+              ],
+            },
+            {
+              duration: 550,
+              easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+              pseudoElement: '::view-transition-new(root)',
+            }
+          );
+        });
+      } else {
+        // Silky CSS fallback transition
+        if (typeof document !== 'undefined') {
+          document.documentElement.classList.add('theme-transitioning');
+          applyTheme(newTheme);
+          setTimeout(() => {
+            document.documentElement.classList.remove('theme-transitioning');
+          }, 480);
+        } else {
+          applyTheme(newTheme);
+        }
+      }
     },
     [applyTheme]
   );
 
-  const toggleTheme = useCallback(() => {
-    const nextTheme: ThemeMode = resolvedTheme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-  }, [resolvedTheme, setTheme]);
+  const toggleTheme = useCallback(
+    (event?: React.MouseEvent | MouseEvent | { clientX: number; clientY: number }) => {
+      const nextTheme: ThemeMode = resolvedTheme === 'dark' ? 'light' : 'dark';
+      setTheme(nextTheme, event);
+    },
+    [resolvedTheme, setTheme]
+  );
 
   const setRagEnabled = useCallback((enabled: boolean) => {
     setRagEnabledState(enabled);

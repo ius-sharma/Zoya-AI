@@ -164,27 +164,27 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
                   <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#FAF6F0] dark:bg-[#141210] rounded-xl border border-[#E8D8C8] dark:border-[#2E2722]">
                     <button
                       type="button"
-                      onClick={() => setTheme('light')}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                      onClick={(e) => setTheme('light', e)}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
                         theme === 'light'
                           ? 'bg-[#FFFFFF] text-[#9C4A1A] shadow-xs border border-[#E8D8C8]'
                           : 'text-[#786A5E] dark:text-[#8C7A6B] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
                       }`}
                     >
-                      <Sun className="w-3.5 h-3.5" />
+                      <Sun className={`w-3.5 h-3.5 transition-transform duration-300 ${theme === 'light' ? 'rotate-0 scale-110' : '-rotate-90 scale-90'}`} />
                       <span>Bright</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setTheme('dark')}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                      onClick={(e) => setTheme('dark', e)}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
                         theme === 'dark'
                           ? 'bg-[#26221E] text-[#D97706] shadow-xs border border-[#38302A]'
                           : 'text-[#786A5E] dark:text-[#8C7A6B] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
                       }`}
                     >
-                      <Moon className="w-3.5 h-3.5" />
+                      <Moon className={`w-3.5 h-3.5 transition-transform duration-300 ${theme === 'dark' ? 'rotate-0 scale-110' : 'rotate-90 scale-90'}`} />
                       <span>Dark</span>
                     </button>
                   </div>
