@@ -72,19 +72,20 @@ function CalloutBlock({ children }: { children: React.ReactNode }) {
   let title = 'Note';
   let borderClass = 'border-[#9C4A1A]/40 dark:border-[#D97706]/40 bg-[#F5EBE0]/60 dark:bg-[#201C19]/60';
 
-  if (contentStr.includes('[!WARNING]') || contentStr.includes('⚠️') || contentStr.includes('Warning:')) {
+  if (contentStr.includes('[!WARNING]') || contentStr.includes('Warning:')) {
     icon = <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />;
     title = 'Warning';
     borderClass = 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20';
-  } else if (contentStr.includes('[!TIP]') || contentStr.includes('💡') || contentStr.includes('Tip:')) {
+  } else if (contentStr.includes('[!TIP]') || contentStr.includes('Tip:')) {
     icon = <Sparkles className="w-4 h-4 text-[#B85D19] dark:text-[#E87A38] shrink-0 mt-0.5" />;
     title = 'Pro Tip';
     borderClass = 'border-[#B85D19]/40 bg-[#F5EBE0]/70 dark:bg-[#26221E]/70';
-  } else if (contentStr.includes('[!IMPORTANT]') || contentStr.includes('📌')) {
+  } else if (contentStr.includes('[!IMPORTANT]') || contentStr.includes('Important:')) {
     icon = <Info className="w-4 h-4 text-[#7C3512] dark:text-[#C5B8AB] shrink-0 mt-0.5" />;
     title = 'Important';
     borderClass = 'border-[#7C3512]/40 bg-[#FAF6F0] dark:bg-[#181513]';
   }
+
 
   return (
     <div className={`my-3 p-3.5 rounded-2xl border ${borderClass} flex items-start gap-3 shadow-xs`}>

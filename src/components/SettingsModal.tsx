@@ -16,6 +16,8 @@ import {
   ToggleLeft,
   ToggleRight,
   FileText,
+  Brain,
+  Plus,
 } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
@@ -33,11 +35,17 @@ export const SettingsModal: React.FC = () => {
     ragEnabled,
     toggleRag,
     purgeAllDocuments,
+    memoryProfile,
+    setIsMemoryModalOpen,
+    removeMemory,
+    addMemory,
   } = useChat();
 
   const [tempName, setTempName] = useState(userName);
   const [isSaved, setIsSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'vault' | 'voice' | 'data'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'appearance' | 'vault' | 'voice' | 'data'>('profile');
+  const [quickMemoryKey, setQuickMemoryKey] = useState('');
+  const [quickMemoryVal, setQuickMemoryVal] = useState('');
 
   useEffect(() => {
     setTempName(userName);
@@ -54,10 +62,19 @@ export const SettingsModal: React.FC = () => {
     }
   };
 
+  const handleQuickAddMemory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (quickMemoryKey.trim() && quickMemoryVal.trim()) {
+      addMemory(quickMemoryKey.trim(), quickMemoryVal.trim(), 'preference');
+      setQuickMemoryKey('');
+      setQuickMemoryVal('');
+    }
+  };
+
   const handleClearAllHistory = () => {
     if (window.confirm('Are you sure you want to clear all conversation history?')) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('zoya_ai_conversations');
+        localStorage.removeItem('zoya_ai_conversations_v1');
         localStorage.removeItem('zoya_ai_active_id');
         window.location.reload();
       }
@@ -84,7 +101,7 @@ export const SettingsModal: React.FC = () => {
             </div>
             <div>
               <h2 className="font-bold text-base text-[#1C1917] dark:text-[#FAF6F0] tracking-tight">Settings & Profile</h2>
-              <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">Customize your persona and preferences</p>
+              <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">Customize your persona, memory and preferences</p>
             </div>
           </div>
           <button
@@ -108,6 +125,18 @@ export const SettingsModal: React.FC = () => {
           >
             <User className="w-3.5 h-3.5" />
             <span>Profile</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('memory')}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-xl transition-all border-b-2 shrink-0 ${
+              activeTab === 'memory'
+                ? 'border-[#9C4A1A] text-[#9C4A1A] dark:text-[#D97706] bg-[#FFFFFF] dark:bg-[#1C1917]'
+                : 'border-transparent text-[#786A5E] dark:text-[#A89F91] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5" />
+            <span>Memory ({memoryProfile.memories.length})</span>
           </button>
 
           <button
@@ -159,6 +188,7 @@ export const SettingsModal: React.FC = () => {
           </button>
         </div>
 
+
         {/* Content Area */}
         <div className="p-6 space-y-5 bg-[#FAF6F0] dark:bg-[#181513] max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700">
           {/* Profile Tab */}
@@ -208,6 +238,103 @@ export const SettingsModal: React.FC = () => {
                 Save Profile
               </button>
             </form>
+          )}
+
+          {/* Memory Tab */}
+          {activeTab === 'memory' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722]">
+                <div>
+                  <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Mini Memory (Thodi si Yaaddasht)</h4>
+                  <p className="text-[11px] text-[#786A5E] dark:text-[#A89F91]">
+                    {memoryProfile.memories.length} facts remembered across your conversations
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsMemoryModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-[#9C4A1A] hover:bg-[#803810] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  <span>Open Manager</span>
+                </button>
+              </div>
+
+              {/* Quick Add Form */}
+              <form onSubmit={handleQuickAddMemory} className="p-3.5 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] space-y-2.5">
+                <span className="text-[11px] font-bold text-[#1C1917] dark:text-[#FAF6F0]">Quick Add Memory</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={quickMemoryKey}
+                    onChange={(e) => setQuickMemoryKey(e.target.value)}
+                    placeholder="Key (e.g. Favorite Drink)"
+                    className="px-3 py-1.5 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={quickMemoryVal}
+                    onChange={(e) => setQuickMemoryVal(e.target.value)}
+                    placeholder="Detail (e.g. Filter Coffee)"
+                    className="px-3 py-1.5 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-1.5 bg-[#FAF6F0] dark:bg-[#26221E] hover:bg-[#F5EBE0] dark:hover:bg-[#332D28] text-[#9C4A1A] dark:text-[#D97706] border border-[#E8D8C8] dark:border-[#38302A] text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add to Zoya Memory</span>
+                </button>
+              </form>
+
+              {/* Recent Memories List */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB]">
+                  Remembered Items
+                </span>
+                {memoryProfile.memories.length === 0 ? (
+                  <p className="text-xs text-[#786A5E] dark:text-[#8C7A6B] p-3 text-center rounded-xl bg-[#FAF6F0] dark:bg-[#141210]">
+                    No memories saved yet.
+                  </p>
+                ) : (
+                  memoryProfile.memories.slice(0, 4).map((mem) => (
+                    <div
+                      key={mem.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722]"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] truncate">{mem.key}</span>
+                          <span className="text-[9px] uppercase px-1 rounded bg-[#FAF6F0] dark:bg-[#26221E] text-[#786A5E] dark:text-[#A89F91]">
+                            {mem.category}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB] truncate">{mem.value}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMemory(mem.id)}
+                        className="p-1 text-[#8C7A6B] hover:text-red-600 rounded"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB]">
+                  Memories are saved 100% locally on your browser.
+                </p>
+              </div>
+            </div>
           )}
 
           {/* Appearance Tab */}

@@ -26,12 +26,29 @@ import {
   FileText,
   UploadCloud,
   Loader2,
+  Brain,
+  Plus,
+  Tag,
+  Heart,
+  Target,
+  Search,
 } from 'lucide-react';
-import { LLMProvider, ProviderConfig, DocumentItem } from '@/types/chat';
+import { LLMProvider, ProviderConfig, DocumentItem, MemoryItem, MemoryProfile, MemoryCategory } from '@/types/chat';
 import {
   getStoredConversations,
   saveStoredConversations,
 } from '@/utils/storage';
+import {
+  getStoredMemoryProfile,
+  saveStoredMemoryProfile,
+  addOrUpdateMemoryItem,
+  deleteMemoryItem,
+  clearMemoryProfile,
+  exportMemoriesToJson,
+  importMemoriesFromJson,
+  DEFAULT_MEMORY_PROFILE,
+} from '@/utils/memory';
+
 
 interface ModelOption {
   id: string;
@@ -154,7 +171,7 @@ const PROVIDER_KEY_LINKS: Record<LLMProvider, { name: string; url: string; prefi
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'model' | 'vault' | 'persona' | 'voice' | 'data'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'model' | 'vault' | 'persona' | 'voice' | 'data'>('profile');
   const [userName, setUserName] = useState<string>('Ayush');
   const [userBio, setUserBio] = useState<string>('');
   const [relationshipStyle, setRelationshipStyle] = useState<string>('bestie');
@@ -164,6 +181,13 @@ export default function SettingsPage() {
   const [autoListen, setAutoListen] = useState<boolean>(true);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [totalChatsCount, setTotalChatsCount] = useState<number>(0);
+
+  // Mini Memory State
+  const [memoryProfile, setMemoryProfile] = useState<MemoryProfile>(DEFAULT_MEMORY_PROFILE);
+  const [memSearch, setMemSearch] = useState<string>('');
+  const [newMemKey, setNewMemKey] = useState<string>('');
+  const [newMemVal, setNewMemVal] = useState<string>('');
+  const [newMemCat, setNewMemCat] = useState<MemoryCategory>('preference');
 
   // Knowledge Vault & Local RAG State
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -197,6 +221,60 @@ export default function SettingsPage() {
       console.warn('Failed to load docs in settings:', e);
     }
   };
+
+  const handleAddMemory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemKey.trim() || !newMemVal.trim()) return;
+    const { profile } = addOrUpdateMemoryItem(memoryProfile, newMemKey.trim(), newMemVal.trim(), newMemCat);
+    setMemoryProfile(profile);
+    setNewMemKey('');
+    setNewMemVal('');
+  };
+
+  const handleDeleteMemory = (id: string) => {
+    const updated = deleteMemoryItem(memoryProfile, id);
+    setMemoryProfile(updated);
+  };
+
+  const handleClearMemories = () => {
+    if (window.confirm('Are you sure you want to clear all stored memories?')) {
+      const reset = clearMemoryProfile(memoryProfile);
+      setMemoryProfile(reset);
+    }
+  };
+
+  const handleExportMemories = () => {
+    const jsonStr = exportMemoriesToJson(memoryProfile);
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(jsonStr);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `zoya_memory_${userName || 'user'}_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  const handleImportMemoriesFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        try {
+          const updated = importMemoriesFromJson(memoryProfile, content);
+          setMemoryProfile(updated);
+          if (updated.userName) setUserName(updated.userName);
+          alert('Memories imported successfully');
+        } catch {
+          alert('Failed to import memory JSON');
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
 
   const handleUploadFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
@@ -430,6 +508,23 @@ export default function SettingsPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('memory')}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all text-left ${
+                activeTab === 'memory'
+                  ? 'bg-[#FAF6F0] dark:bg-[#26221E] text-[#9C4A1A] dark:text-[#FAF6F0] border border-[#E8D8C8] dark:border-[#38302A] shadow-xs'
+                  : 'text-[#574E45] dark:text-[#A89F91] hover:bg-[#FAF6F0] dark:hover:bg-[#241F1C] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
+              }`}
+            >
+              <Brain className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+              <div className="flex flex-col">
+                <span>Mini Memory (Yaaddasht)</span>
+                <span className="text-[10px] text-[#8C7A6B] dark:text-[#786A5E] font-normal">
+                  {memoryProfile.memories.length} facts • Client-side
+                </span>
+              </div>
+            </button>
+
+            <button
               onClick={() => setActiveTab('model')}
               className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-bold transition-all text-left ${
                 activeTab === 'model'
@@ -564,6 +659,182 @@ export default function SettingsPage() {
                   />
                   <p className="text-[11px] text-[#786A5E] dark:text-[#8C7A6B]">
                     Zoya will keep this context in mind during all text and voice interactions.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Mini Memory Tab */}
+            {activeTab === 'memory' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#1C1917] dark:text-[#FAF6F0] tracking-tight">
+                      Mini Memory (Thodi si Yaaddasht)
+                    </h2>
+                    <p className="text-xs text-[#786A5E] dark:text-[#A89F91]">
+                      Zoya stores personal preferences and facts locally so conversations feel alive and personalized.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF6F0] dark:bg-[#26221E] hover:bg-[#F5EBE0] dark:hover:bg-[#332D28] text-[#574E45] dark:text-[#C5B8AB] border border-[#E8D8C8] dark:border-[#38302A] text-xs font-semibold rounded-xl cursor-pointer transition-all">
+                      <UploadCloud className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
+                      <span>Import JSON</span>
+                      <input type="file" accept=".json" onChange={handleImportMemoriesFile} className="hidden" />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleExportMemories}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF6F0] dark:bg-[#26221E] hover:bg-[#F5EBE0] dark:hover:bg-[#332D28] text-[#574E45] dark:text-[#C5B8AB] border border-[#E8D8C8] dark:border-[#38302A] text-xs font-semibold rounded-xl transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
+                      <span>Export JSON</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Add Memory Form */}
+                <form onSubmit={handleAddMemory} className="p-4 rounded-2xl bg-[#FAF6F0] dark:bg-[#26221E] border border-[#E8D8C8] dark:border-[#38302A] space-y-3">
+                  <h3 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] uppercase tracking-wider">
+                    Add New Remembered Fact
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-4 space-y-1">
+                      <label className="text-[10px] font-bold text-[#574E45] dark:text-[#C5B8AB]">Topic / Key</label>
+                      <input
+                        type="text"
+                        value={newMemKey}
+                        onChange={(e) => setNewMemKey(e.target.value)}
+                        placeholder="e.g. Favorite Drink"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#38302A] text-xs text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-5 space-y-1">
+                      <label className="text-[10px] font-bold text-[#574E45] dark:text-[#C5B8AB]">Fact / Detail</label>
+                      <input
+                        type="text"
+                        value={newMemVal}
+                        onChange={(e) => setNewMemVal(e.target.value)}
+                        placeholder="e.g. Adrak Chai without sugar"
+                        required
+                        className="w-full px-3 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#38302A] text-xs text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                      />
+                    </div>
+                    <div className="sm:col-span-3 space-y-1">
+                      <label className="text-[10px] font-bold text-[#574E45] dark:text-[#C5B8AB]">Category</label>
+                      <select
+                        value={newMemCat}
+                        onChange={(e) => setNewMemCat(e.target.value as MemoryCategory)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#FFFFFF] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#38302A] text-xs text-[#1C1917] dark:text-[#FAF6F0] focus:outline-none"
+                      >
+                        <option value="preference">Preference</option>
+                        <option value="identity">Identity</option>
+                        <option value="goal">Goal</option>
+                        <option value="fact">Fact</option>
+                        <option value="general">General</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-[#9C4A1A] hover:bg-[#803810] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Save Memory</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Stored Memories List */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold text-[#574E45] dark:text-[#C5B8AB] uppercase tracking-wider">
+                        Saved Memories ({memoryProfile.memories.length})
+                      </h3>
+                    </div>
+                    {memoryProfile.memories.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleClearMemories}
+                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Clear All</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C7A6B] dark:text-[#786A5E]" />
+                    <input
+                      type="text"
+                      value={memSearch}
+                      onChange={(e) => setMemSearch(e.target.value)}
+                      placeholder="Filter memories by keyword..."
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#26221E] border border-[#E8D8C8] dark:border-[#38302A] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                    />
+                  </div>
+
+                  {memoryProfile.memories.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]">
+                      <Brain className="w-6 h-6 mx-auto text-[#A89F91] dark:text-[#574E45] mb-1.5" />
+                      <p className="text-xs font-semibold text-[#574E45] dark:text-[#C5B8AB]">No memories recorded yet.</p>
+                      <p className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B]">
+                        Chat with Zoya or use the form above to add facts.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {memoryProfile.memories
+                        .filter(
+                          (m) =>
+                            m.key.toLowerCase().includes(memSearch.toLowerCase()) ||
+                            m.value.toLowerCase().includes(memSearch.toLowerCase())
+                        )
+                        .map((mem) => (
+                          <div
+                            key={mem.id}
+                            className="flex items-center justify-between p-3.5 rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 pr-2">
+                              <Tag className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] truncate">
+                                    {mem.key}
+                                  </span>
+                                  <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-[#FFFFFF] dark:bg-[#26221E] text-[#786A5E] dark:text-[#A89F91] border border-[#E8D8C8]/60 dark:border-[#38302A]">
+                                    {mem.category}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-[#574E45] dark:text-[#C5B8AB] mt-0.5 font-medium">
+                                  {mem.value}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMemory(mem.id)}
+                              className="p-1.5 text-[#8C7A6B] hover:text-red-600 rounded-lg transition-colors shrink-0"
+                              title="Delete memory"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722]">
+                  <ShieldCheck className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                  <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB]">
+                    <strong>100% Client-Side Privacy:</strong> Memories are stored directly in your browser localStorage and can be exported as JSON anytime.
                   </p>
                 </div>
               </div>

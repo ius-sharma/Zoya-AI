@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   Conversation,
   Message,
@@ -10,6 +10,9 @@ import {
   ProviderConfig,
   DocumentItem,
   RagCitation,
+  MemoryItem,
+  MemoryProfile,
+  MemoryCategory,
 } from '@/types/chat';
 import {
   getStoredConversations,
@@ -19,6 +22,19 @@ import {
   generateConversationTitle,
   createNewConversation,
 } from '@/utils/storage';
+import {
+  getStoredMemoryProfile,
+  saveStoredMemoryProfile,
+  recordVisit,
+  addOrUpdateMemoryItem,
+  deleteMemoryItem,
+  clearMemoryProfile,
+  exportMemoriesToJson,
+  importMemoriesFromJson,
+  extractMemoryTags,
+  detectUserExplicitFacts,
+  DEFAULT_MEMORY_PROFILE,
+} from '@/utils/memory';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -65,7 +81,17 @@ interface ChatContextType {
   deleteDocument: (documentId: string) => Promise<boolean>;
   purgeAllDocuments: () => Promise<boolean>;
   fetchDocuments: () => Promise<void>;
+  // Mini Memory (Yaaddasht)
+  memoryProfile: MemoryProfile;
+  isMemoryModalOpen: boolean;
+  setIsMemoryModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  addMemory: (key: string, value: string, category?: MemoryCategory) => void;
+  removeMemory: (id: string) => void;
+  clearAllMemories: () => void;
+  importMemories: (jsonString: string) => boolean;
+  exportMemories: () => string;
 }
+
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
@@ -82,6 +108,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isUploadingDocs, setIsUploadingDocs] = useState<boolean>(false);
 
   const [userName, setUserName] = useState<string>('Ayush');
+  const [memoryProfile, setMemoryProfile] = useState<MemoryProfile>(DEFAULT_MEMORY_PROFILE);
+  const [isMemoryModalOpen, setIsMemoryModalOpen] = useState<boolean>(false);
   const [providerConfig, setProviderConfig] = useState<ProviderConfig>({
     provider: 'default',
     model: 'llama-3.3-70b-versatile',
@@ -232,13 +260,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return false;
   }, []);
 
+  // Mini Memory Actions
+  const addMemory = useCallback((key: string, value: string, category: MemoryCategory = 'fact') => {
+    setMemoryProfile((prev) => {
+      const { profile } = addOrUpdateMemoryItem(prev, key, value, category);
+      return profile;
+    });
+  }, []);
+
+  const removeMemory = useCallback((id: string) => {
+    setMemoryProfile((prev) => deleteMemoryItem(prev, id));
+  }, []);
+
+  const clearAllMemories = useCallback(() => {
+    setMemoryProfile((prev) => clearMemoryProfile(prev));
+  }, []);
+
+  const importMemories = useCallback((jsonString: string): boolean => {
+    try {
+      setMemoryProfile((prev) => {
+        const updated = importMemoriesFromJson(prev, jsonString);
+        if (updated.userName) {
+          setUserName(updated.userName);
+        }
+        return updated;
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to import memory JSON:', e);
+      return false;
+    }
+  }, []);
+
+  const exportMemories = useCallback((): string => {
+    return exportMemoriesToJson(memoryProfile);
+  }, [memoryProfile]);
+
   // Load from localStorage & fetch documents on mount
   useEffect(() => {
     const savedConvos = getStoredConversations();
     const savedActiveId = getStoredActiveId();
 
     if (typeof window !== 'undefined') {
-      const savedName = localStorage.getItem('zoya_ai_user_name');
+      const loadedProfile = getStoredMemoryProfile();
+      const updatedProfile = recordVisit(loadedProfile);
+      setMemoryProfile(updatedProfile);
+
+      const savedName = updatedProfile.userName || localStorage.getItem('zoya_ai_user_name');
       if (savedName && savedName.trim()) {
         setUserName(savedName.trim());
       }
@@ -305,10 +373,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const updateUserName = useCallback((name: string) => {
     const trimmed = name.trim() || 'Ayush';
     setUserName(trimmed);
+    setMemoryProfile((prev) => {
+      const updated: MemoryProfile = { ...prev, userName: trimmed };
+      saveStoredMemoryProfile(updated);
+      return updated;
+    });
     if (typeof window !== 'undefined') {
       localStorage.setItem('zoya_ai_user_name', trimmed);
     }
   }, []);
+
 
   const updateProviderConfig = useCallback((config: ProviderConfig) => {
     setProviderConfig(config);
@@ -460,6 +534,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           content: m.content.trim(),
         }));
 
+      // Client-side heuristics: detect if user explicitly stated their name or preferences
+      const detectedFacts = detectUserExplicitFacts(userMsgText);
+      if (detectedFacts.length > 0) {
+        let currentProfile = memoryProfile;
+        for (const fact of detectedFacts) {
+          const { profile } = addOrUpdateMemoryItem(currentProfile, fact.key, fact.value, fact.category);
+          currentProfile = profile;
+          if (fact.isNameUpdate && fact.value) {
+            setUserName(fact.value);
+          }
+        }
+        setMemoryProfile(currentProfile);
+      }
+
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -467,6 +555,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify({
             messages: historyToSend,
             userName,
+            memoryProfile,
             providerConfig,
             quickAction,
             ragEnabled,
@@ -492,26 +581,29 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const decoder = new TextDecoder();
         let accumulatedText = '';
 
-        // Helper: parse <think>...</think> from accumulated raw text
-        const parseThinkBlock = (raw: string): { thought: string; content: string } => {
-          // Check for <think>...</think> block
+        // Helper: parse <think>...</think> and strip <memory_save .../> tags from accumulated raw text
+        const parseThinkAndMemoryBlock = (raw: string): { thought: string; content: string } => {
+          // 1. First extract and remove any memory_save tags from raw stream
+          const { cleanContent: cleanRaw } = extractMemoryTags(raw);
+
+          // 2. Check for <think>...</think> block
           const thinkOpenTag = '<think>';
           const thinkCloseTag = '</think>';
-          const openIdx = raw.indexOf(thinkOpenTag);
+          const openIdx = cleanRaw.indexOf(thinkOpenTag);
           if (openIdx === -1) {
-            return { thought: '', content: raw };
+            return { thought: '', content: cleanRaw };
           }
-          const closeIdx = raw.indexOf(thinkCloseTag);
+          const closeIdx = cleanRaw.indexOf(thinkCloseTag);
           if (closeIdx === -1) {
-            // Still streaming inside <think> block — hide everything after <think>
-            const beforeThink = raw.substring(0, openIdx).trim();
-            const insideThink = raw.substring(openIdx + thinkOpenTag.length).trim();
+            // Still streaming inside <think> block - hide everything after <think>
+            const beforeThink = cleanRaw.substring(0, openIdx).trim();
+            const insideThink = cleanRaw.substring(openIdx + thinkOpenTag.length).trim();
             return { thought: insideThink, content: beforeThink };
           }
-          // Both tags found — extract thought and clean content
-          const thoughtText = raw.substring(openIdx + thinkOpenTag.length, closeIdx).trim();
-          const afterThink = raw.substring(closeIdx + thinkCloseTag.length).trim();
-          const beforeThink = raw.substring(0, openIdx).trim();
+          // Both tags found - extract thought and clean content
+          const thoughtText = cleanRaw.substring(openIdx + thinkOpenTag.length, closeIdx).trim();
+          const afterThink = cleanRaw.substring(closeIdx + thinkCloseTag.length).trim();
+          const beforeThink = cleanRaw.substring(0, openIdx).trim();
           const cleanContent = (beforeThink + (beforeThink && afterThink ? '\n' : '') + afterThink).trim();
           return { thought: thoughtText, content: cleanContent };
         };
@@ -523,7 +615,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const chunk = decoder.decode(value, { stream: true });
           accumulatedText += chunk;
 
-          const parsed = parseThinkBlock(accumulatedText);
+          const parsed = parseThinkAndMemoryBlock(accumulatedText);
 
           // Update active conversation assistant message in-place
           setConversations((prev) =>
@@ -549,8 +641,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        // Finalize streaming — do final think-block parse
-        const finalParsed = parseThinkBlock(accumulatedText);
+        // Finalize streaming: extract any emitted memories from final accumulated text
+        const { extracted: newMemories } = extractMemoryTags(accumulatedText);
+        if (newMemories.length > 0) {
+          setMemoryProfile((prev) => {
+            let updated = prev;
+            for (const mem of newMemories) {
+              const res = addOrUpdateMemoryItem(updated, mem.key, mem.value, mem.category || 'fact');
+              updated = res.profile;
+              if (mem.key.toLowerCase().includes('name') && mem.value) {
+                setUserName(mem.value);
+              }
+            }
+            return updated;
+          });
+        }
+
+        const finalParsed = parseThinkAndMemoryBlock(accumulatedText);
 
         setConversations((prev) =>
           prev.map((c) => {
@@ -602,7 +709,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return fallbackText;
       }
     },
-    [activeId, conversations, userName, providerConfig, ragEnabled]
+    [activeId, conversations, userName, memoryProfile, providerConfig, ragEnabled]
   );
 
   return (
@@ -649,12 +756,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         deleteDocument,
         purgeAllDocuments,
         fetchDocuments,
+        memoryProfile,
+        isMemoryModalOpen,
+        setIsMemoryModalOpen,
+        addMemory,
+        removeMemory,
+        clearAllMemories,
+        importMemories,
+        exportMemories,
       }}
     >
       {children}
     </ChatContext.Provider>
   );
 }
+
 
 export function useChat() {
   const context = useContext(ChatContext);

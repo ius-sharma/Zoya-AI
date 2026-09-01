@@ -6,7 +6,7 @@ import { InputBar } from './InputBar';
 import { useChat } from '@/context/ChatContext';
 
 export const ChatView: React.FC = () => {
-  const { activeConversation, sendMessage, isStreaming, userName } = useChat();
+  const { activeConversation, sendMessage, isStreaming, userName, memoryProfile } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [greetingText, setGreetingText] = useState<string>('Welcome, Ayush');
@@ -27,13 +27,21 @@ export const ChatView: React.FC = () => {
     }
   }, [messages.length, messages[messages.length - 1]?.content, isStreaming, isHeroEmpty]);
 
-  // Compute rotational dynamic time-aware greeting with user name
+  // Compute rotational dynamic time-aware & memory-aware greeting with user name
   useEffect(() => {
-    const name = userName || 'Ayush';
+    const name = userName || memoryProfile?.userName || 'Ayush';
     const hour = new Date().getHours();
+    const isReturning = (memoryProfile?.visitCount || 1) > 1;
     let pool: string[] = [];
 
-    if (hour >= 5 && hour < 12) {
+    if (isReturning && Math.random() > 0.4) {
+      pool = [
+        `Arre ${name}, wapas aa gaye!`,
+        `Welcome back, ${name}`,
+        `Good to see you again, ${name}`,
+        `Ready for more, ${name}?`,
+      ];
+    } else if (hour >= 5 && hour < 12) {
       pool = ['Good morning', 'Early start', 'Morning clarity', 'Fresh thoughts'];
     } else if (hour >= 12 && hour < 17) {
       pool = ['Good afternoon', 'Midday focus', 'Afternoon flow', 'Creative momentum'];
@@ -45,8 +53,10 @@ export const ChatView: React.FC = () => {
     }
 
     const chosenPrefix = pool[Math.floor(Math.random() * pool.length)];
-    setGreetingText(`${chosenPrefix}, ${name}`);
-  }, [activeConversation?.id, userName]);
+    const finalGreeting = chosenPrefix.includes(name) ? chosenPrefix : `${chosenPrefix}, ${name}`;
+    setGreetingText(finalGreeting);
+  }, [activeConversation?.id, userName, memoryProfile]);
+
 
   const handleSend = (text: string) => {
     sendMessage(text);

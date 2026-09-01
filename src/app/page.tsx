@@ -8,6 +8,7 @@ import { ChatView } from '@/components/ChatView';
 import { VoiceModeScreen } from '@/components/VoiceModeScreen';
 import { SettingsModal } from '@/components/SettingsModal';
 import { KnowledgeVaultModal } from '@/components/KnowledgeVaultModal';
+import { MemoryManagerModal } from '@/components/MemoryManagerModal';
 
 function MainApp() {
   const { voiceState } = useChat();
@@ -21,6 +22,9 @@ function MainApp() {
         <ChatView />
       </main>
 
+      {/* Memory Manager Modal */}
+      <MemoryManagerModal />
+
       {/* Settings Modal */}
       <SettingsModal />
 
@@ -32,6 +36,7 @@ function MainApp() {
     </div>
   );
 }
+
 
 export default function Home() {
   return (

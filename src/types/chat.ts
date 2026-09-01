@@ -82,3 +82,21 @@ export interface ProviderConfig {
   customBaseUrl?: string;
 }
 
+export type MemoryCategory = 'identity' | 'preference' | 'goal' | 'fact' | 'general';
+
+export interface MemoryItem {
+  id: string;
+  key: string;
+  value: string;
+  category: MemoryCategory;
+  updatedAt: number;
+}
+
+export interface MemoryProfile {
+  userName: string;
+  memories: MemoryItem[];
+  lastVisited: number;
+  visitCount: number;
+}
+
+

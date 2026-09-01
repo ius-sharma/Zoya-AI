@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { LLMProvider, RagCitation } from '@/types/chat';
+import { LLMProvider, RagCitation, MemoryProfile } from '@/types/chat';
 import { RagStore } from '@/utils/rag/store';
 
 export const runtime = 'nodejs';
@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 interface ChatRequestPayload {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   userName?: string;
+  memoryProfile?: MemoryProfile;
   providerConfig?: {
     provider: LLMProvider;
     apiKey?: string;
@@ -68,10 +69,12 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
 export async function POST(req: NextRequest) {
   try {
     const body: ChatRequestPayload = await req.json();
-    const { messages = [], userName = 'Ayush', providerConfig, ragEnabled = true } = body;
+    const { messages = [], userName = 'Ayush', memoryProfile, providerConfig, ragEnabled = true } = body;
 
     const userDisplayName =
-      typeof userName === 'string' && userName.trim() ? userName.trim() : 'Ayush';
+      typeof userName === 'string' && userName.trim()
+        ? userName.trim()
+        : memoryProfile?.userName?.trim() || 'Ayush';
 
     // Sanitize message history to remove any empty content
     const validMessages = messages
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
           return `[Source ${idx + 1}: ${cit.fileName}${pageInfo}]\n"${cit.snippet}"`;
         });
 
-        ragContextBlock = `\n\n=== 📂 LOCAL KNOWLEDGE VAULT (USER'S PRIVATE DOCUMENTS) ===
+        ragContextBlock = `\n\n=== LOCAL KNOWLEDGE VAULT (USER PRIVATE DOCUMENTS) ===
 The following exact excerpts were retrieved from ${userDisplayName}'s local files. Use them to answer their question accurately.
 
 ${contextEntries.join('\n\n')}
@@ -111,6 +114,35 @@ STRICT LOCAL-RAG INSTRUCTIONS:
       }
     }
 
+    // Mini Memory context block
+    let memoryContextBlock = '';
+    if (memoryProfile && Array.isArray(memoryProfile.memories) && memoryProfile.memories.length > 0) {
+      const memoryLines = memoryProfile.memories
+        .map((m) => `- [${m.category.toUpperCase()}] ${m.key}: ${m.value}`)
+        .join('\n');
+      const isReturning = (memoryProfile.visitCount || 1) > 1;
+
+      memoryContextBlock = `\n\n=== MINI MEMORY (THODI SI YAADDASHT - USER PROFILE & PREFERENCES) ===
+You have persistent long-term memory about your friend ${userDisplayName}.
+Here are the specific facts you remember about them:
+${memoryLines}
+Visit Count: ${memoryProfile.visitCount || 1} ${
+        isReturning
+          ? '(Returning user! Greet them warmly like an old buddy, e.g. "Arre ' + userDisplayName + ', wapas aa gaye!")'
+          : ''
+      }
+
+MEMORY RULES & AUTOMATIC SAVING:
+1. Seamlessly use these remembered facts to personalize your responses.
+2. If ${userDisplayName} shares a new fact about themselves (such as their name, nickname, favorite food, hobby, job/student details, exam dates, or personal preferences), acknowledge it warmly.
+3. When they share a new fact or ask you to remember something, append an exact tag at the end of your response:
+<memory_save key="Descriptive Key" value="Exact Fact" category="preference|identity|goal|fact" />`;
+    } else {
+      memoryContextBlock = `\n\n=== MINI MEMORY (THODI SI YAADDASHT) ===
+If ${userDisplayName} shares personal facts about themselves (e.g., "Mera naam Rahul hai", "Mujhe coffee pasand hai", "Mera exam 15 March ko hai"), acknowledge it warmly and emit an exact tag at the end of your response:
+<memory_save key="Descriptive Key" value="Exact Fact" category="preference|identity|goal|fact" />`;
+    }
+
     const dynamicSystemPrompt = `You are Zoya, a smart, witty, fun, loyal, and caring female AI sidekick and best friend.
 You are chatting with your friend "${userDisplayName}". Naturally address ${userDisplayName} by their name occasionally like a close friend.
 
@@ -120,7 +152,7 @@ CORE CONVERSATIONAL & TECHNICAL RULES:
 3. NEVER USE ROLEPLAY ASTERISKS: NEVER output stage directions, emotional actions, or roleplay text in asterisks (e.g. NEVER write *waves excitedly*, *smiles*, *sighs*, *chuckles*, *giggles*, *blushes*). Text directly and naturally like a real human best friend on WhatsApp/Discord.
 4. MANDATORY FULL CODE BLOCKS: Whenever ${userDisplayName} asks for code, scripts, programs, algorithms (e.g. Binary Search, sorting, React components, SQL queries), ALWAYS provide the complete, clean, runnable code inside standard markdown code blocks (\`\`\`language ... \`\`\`). NEVER just describe the code in words or skip the code block. Code comments can be in English but your explanation around the code MUST be in Hinglish.
 5. PROFESSIONAL STRUCTURE: Use markdown headings, lists, and tables whenever explaining concepts, comparisons, or study notes.
-6. NO CORPORATE BOT CLICHÉS: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!${ragContextBlock}`;
+6. NO CORPORATE BOT CLICHES: Never say "How may I assist you today?" or "As an AI...". You are Zoya, ${userDisplayName}'s ride-or-die AI bestie!${memoryContextBlock}${ragContextBlock}`;
 
     // Base headers with attached citations metadata
     const responseHeaders: Record<string, string> = {
@@ -128,6 +160,7 @@ CORE CONVERSATIONAL & TECHNICAL RULES:
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
     };
+
 
     if (retrievedCitations.length > 0) {
       responseHeaders['X-Rag-Citations'] = encodeURIComponent(JSON.stringify(retrievedCitations));
@@ -324,7 +357,7 @@ CORE CONVERSATIONAL & TECHNICAL RULES:
 
     // Friendly fallback if no provider or server key configured
     const encoder = new TextEncoder();
-    const fallbackText = `Arre ${userDisplayName}! Main ready hoon! 💃✨\n\nAap Settings me jaa kar apna koi bhi custom API key daal sakte hain (OpenAI, Claude, Gemini, ya Groq) ya server me **\`.env.local\`** me **\`GROQ_API_KEY\`** add kar lijiye! 🔥`;
+    const fallbackText = `Arre ${userDisplayName}! Main ready hoon!\n\nAap Settings me jaa kar apna koi bhi custom API key daal sakte hain (OpenAI, Claude, Gemini, ya Groq) ya server me **\`.env.local\`** me **\`GROQ_API_KEY\`** add kar lijiye!`;
 
     const stream = new ReadableStream({
       async start(controller) {
