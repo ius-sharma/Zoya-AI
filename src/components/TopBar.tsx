@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Menu, ChevronDown, Settings, Cpu, ExternalLink, Sun, Moon, Check, Database, Brain } from 'lucide-react';
+import { Menu, ChevronDown, Settings, Cpu, ExternalLink, Sun, Moon, Check, Database } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface TopBarProps {
@@ -20,8 +20,6 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
     setIsVaultOpen,
     documents,
     ragEnabled,
-    memoryProfile,
-    setIsMemoryModalOpen,
   } = useChat();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -103,19 +101,6 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
 
       {/* Right side: User Profile with Merged Theme Switcher */}
       <div className="flex items-center gap-2">
-        {/* Quick Mini Memory Pill */}
-        <button
-          onClick={() => setIsMemoryModalOpen(true)}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FAF6F0] dark:bg-[#1E1B18] hover:bg-[#F5EBE0] dark:hover:bg-[#2A2420] text-[#7C3512] dark:text-[#E8D8C8] text-xs font-semibold border border-[#E8D8C8] dark:border-[#38302A] transition-all hover:scale-[1.02] active:scale-[0.98]"
-          title="Open Mini Memory"
-        >
-          <Brain className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
-          <span>Memory</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#9C4A1A]/10 dark:bg-[#D97706]/20 text-[#9C4A1A] dark:text-[#D97706] font-bold">
-            {memoryProfile.memories.length}
-          </span>
-        </button>
-
         {/* Profile Avatar */}
         <div className="relative">
           <button
@@ -194,21 +179,6 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
 
                 {/* Navigation Links */}
                 <div className="space-y-0.5 pt-0.5">
-                  <button
-                    onClick={() => {
-                      setIsProfileOpen(false);
-                      setIsMemoryModalOpen(true);
-                    }}
-                    className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] rounded-xl transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
-                      <span>Mini Memory</span>
-                    </div>
-                    <span className="text-[10px] text-[#9C4A1A] dark:text-[#D97706] font-bold">
-                      {memoryProfile.memories.length} Facts
-                    </span>
-                  </button>
 
                   <button
                     onClick={() => {

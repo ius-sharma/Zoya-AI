@@ -18,8 +18,14 @@ import {
   FileText,
   Brain,
   Plus,
+  Download,
+  Upload,
+  Search,
+  Tag,
+  ChevronDown,
 } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
+import { MemoryCategory } from '@/types/chat';
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -36,22 +42,37 @@ export const SettingsModal: React.FC = () => {
     toggleRag,
     purgeAllDocuments,
     memoryProfile,
-    setIsMemoryModalOpen,
     removeMemory,
     addMemory,
+    clearAllMemories,
+    importMemories,
+    exportMemories,
   } = useChat();
 
   const [tempName, setTempName] = useState(userName);
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'memory' | 'appearance' | 'vault' | 'voice' | 'data'>('profile');
-  const [quickMemoryKey, setQuickMemoryKey] = useState('');
-  const [quickMemoryVal, setQuickMemoryVal] = useState('');
+
+  // Memory Management Studio State
+  const [memorySearchQuery, setMemorySearchQuery] = useState('');
+  const [memoryCategoryFilter, setMemoryCategoryFilter] = useState<MemoryCategory | 'all'>('all');
+  const [newMemKey, setNewMemKey] = useState('');
+  const [newMemVal, setNewMemVal] = useState('');
+  const [newMemCat, setNewMemCat] = useState<MemoryCategory>('preference');
+  const [isAddingMem, setIsAddingMem] = useState(false);
+  const [isModalCatOpen, setIsModalCatOpen] = useState(false);
+  const [memStatusMessage, setMemStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setTempName(userName);
   }, [userName, isSettingsOpen]);
 
   if (!isSettingsOpen) return null;
+
+  const showMemStatus = (msg: string) => {
+    setMemStatusMessage(msg);
+    setTimeout(() => setMemStatusMessage(null), 2500);
+  };
 
   const handleSaveName = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,14 +83,63 @@ export const SettingsModal: React.FC = () => {
     }
   };
 
-  const handleQuickAddMemory = (e: React.FormEvent) => {
+  const handleAddMemory = (e: React.FormEvent) => {
     e.preventDefault();
-    if (quickMemoryKey.trim() && quickMemoryVal.trim()) {
-      addMemory(quickMemoryKey.trim(), quickMemoryVal.trim(), 'preference');
-      setQuickMemoryKey('');
-      setQuickMemoryVal('');
+    if (newMemKey.trim() && newMemVal.trim()) {
+      addMemory(newMemKey.trim(), newMemVal.trim(), newMemCat);
+      setNewMemKey('');
+      setNewMemVal('');
+      setIsAddingMem(false);
+      showMemStatus('Memory fact saved successfully');
     }
   };
+
+  const handleExportMemories = () => {
+    const jsonStr = exportMemories();
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(jsonStr);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `zoya_memory_${userName || 'user'}_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showMemStatus('Exported memory JSON file');
+  };
+
+  const handleImportMemoriesFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const success = importMemories(content);
+        if (success) {
+          showMemStatus('Memories imported successfully');
+        } else {
+          showMemStatus('Error importing memory JSON');
+        }
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleClearAllMemories = () => {
+    if (window.confirm('Are you sure you want to clear all stored memories for Zoya?')) {
+      clearAllMemories();
+      showMemStatus('All memories cleared');
+    }
+  };
+
+  const filteredMemories = memoryProfile.memories.filter((mem) => {
+    const matchesSearch =
+      mem.key.toLowerCase().includes(memorySearchQuery.toLowerCase()) ||
+      mem.value.toLowerCase().includes(memorySearchQuery.toLowerCase());
+    const matchesCat = memoryCategoryFilter === 'all' || mem.category === memoryCategoryFilter;
+    return matchesSearch && matchesCat;
+  });
 
   const handleClearAllHistory = () => {
     if (window.confirm('Are you sure you want to clear all conversation history?')) {
@@ -243,95 +313,276 @@ export const SettingsModal: React.FC = () => {
           {/* Memory Tab */}
           {activeTab === 'memory' && (
             <div className="space-y-4">
+              {/* Header Info Banner */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722]">
-                <div>
-                  <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">Mini Memory (Thodi si Yaaddasht)</h4>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+                    <h4 className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">
+                      Zoya Long-Term Memory
+                    </h4>
+                  </div>
                   <p className="text-[11px] text-[#786A5E] dark:text-[#A89F91]">
                     {memoryProfile.memories.length} facts remembered across your conversations
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    setIsMemoryModalOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-[#9C4A1A] hover:bg-[#803810] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                  onClick={() => setIsAddingMem(!isAddingMem)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#9C4A1A] dark:bg-[#B85D19] hover:bg-[#803810] dark:hover:bg-[#9C4A1A] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
                 >
-                  <Brain className="w-3.5 h-3.5" />
-                  <span>Open Manager</span>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isAddingMem ? 'Close Form' : 'Add Memory'}</span>
                 </button>
               </div>
 
-              {/* Quick Add Form */}
-              <form onSubmit={handleQuickAddMemory} className="p-3.5 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] space-y-2.5">
-                <span className="text-[11px] font-bold text-[#1C1917] dark:text-[#FAF6F0]">Quick Add Memory</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* Status Message Notification Toast */}
+              {memStatusMessage && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{memStatusMessage}</span>
+                </div>
+              )}
+
+              {/* Add Memory Form */}
+              {isAddingMem && (
+                <form
+                  onSubmit={handleAddMemory}
+                  className="p-4 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#9C4A1A]/30 dark:border-[#D97706]/30 shadow-xs space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0]">
+                      New Memory Fact
+                    </span>
+                    <span className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B]">
+                      Stored locally in browser
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB] mb-1">
+                          Fact Key
+                        </label>
+                        <input
+                          type="text"
+                          value={newMemKey}
+                          onChange={(e) => setNewMemKey(e.target.value)}
+                          placeholder="e.g. Favorite Language"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none focus:border-[#9C4A1A] dark:focus:border-[#D97706]"
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB] mb-1">
+                          Category
+                        </label>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setIsModalCatOpen(!isModalCatOpen)}
+                            className="w-full h-8 px-3 rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-xs font-semibold text-[#1C1917] dark:text-[#FAF6F0] flex items-center justify-between hover:border-[#9C4A1A]/40 dark:hover:border-[#D97706]/40 transition-all cursor-pointer focus:outline-none"
+                          >
+                            <div className="flex items-center gap-1.5 truncate">
+                              <Tag className="w-3 h-3 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+                              <span className="capitalize">{newMemCat}</span>
+                            </div>
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 text-[#8C7A6B] dark:text-[#786A5E] transition-transform duration-200 ${
+                                isModalCatOpen ? 'rotate-180 text-[#9C4A1A] dark:text-[#D97706]' : ''
+                              }`}
+                            />
+                          </button>
+
+                          {isModalCatOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setIsModalCatOpen(false)}
+                              />
+                              <div className="absolute right-0 left-0 mt-1 p-1 bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] rounded-xl shadow-xl shadow-stone-400/20 dark:shadow-black/70 z-50 animate-in fade-in zoom-in-95 duration-150">
+                                {(['preference', 'identity', 'goal', 'fact', 'general'] as const).map((cat) => (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => {
+                                      setNewMemCat(cat);
+                                      setIsModalCatOpen(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                      newMemCat === cat
+                                        ? 'bg-[#9C4A1A]/10 dark:bg-[#B85D19]/20 text-[#9C4A1A] dark:text-[#D97706] font-bold'
+                                        : 'text-[#574E45] dark:text-[#C5B8AB] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] hover:text-[#1C1917] dark:hover:text-[#FAF6F0]'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${
+                                          newMemCat === cat
+                                            ? 'bg-[#9C4A1A] dark:bg-[#D97706]'
+                                            : 'bg-stone-300 dark:bg-stone-600'
+                                        }`}
+                                      />
+                                      <span className="capitalize">{cat}</span>
+                                    </div>
+                                    {newMemCat === cat && (
+                                      <Check className="w-3 h-3 text-[#9C4A1A] dark:text-[#D97706]" />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB] mb-1">
+                        Detail / Value
+                      </label>
+                      <input
+                        type="text"
+                        value={newMemVal}
+                        onChange={(e) => setNewMemVal(e.target.value)}
+                        placeholder="e.g. TypeScript, Next.js, and Tailwind CSS"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none focus:border-[#9C4A1A] dark:focus:border-[#D97706]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingMem(false)}
+                      className="px-3 py-1.5 text-xs text-[#786A5E] dark:text-[#A89F91] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] font-semibold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-[#9C4A1A] dark:bg-[#B85D19] hover:bg-[#803810] dark:hover:bg-[#9C4A1A] text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+                    >
+                      Save to Memory
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Search & Filter Bar */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#8C7A6B] absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    value={quickMemoryKey}
-                    onChange={(e) => setQuickMemoryKey(e.target.value)}
-                    placeholder="Key (e.g. Favorite Drink)"
-                    className="px-3 py-1.5 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={quickMemoryVal}
-                    onChange={(e) => setQuickMemoryVal(e.target.value)}
-                    placeholder="Detail (e.g. Filter Coffee)"
-                    className="px-3 py-1.5 text-xs rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none"
+                    value={memorySearchQuery}
+                    onChange={(e) => setMemorySearchQuery(e.target.value)}
+                    placeholder="Search remembered facts..."
+                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] text-[#1C1917] dark:text-[#FAF6F0] placeholder-[#8C7A6B] focus:outline-none focus:border-[#9C4A1A] dark:focus:border-[#D97706]"
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="w-full py-1.5 bg-[#FAF6F0] dark:bg-[#26221E] hover:bg-[#F5EBE0] dark:hover:bg-[#332D28] text-[#9C4A1A] dark:text-[#D97706] border border-[#E8D8C8] dark:border-[#38302A] text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add to Zoya Memory</span>
-                </button>
-              </form>
 
-              {/* Recent Memories List */}
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#574E45] dark:text-[#C5B8AB]">
-                  Remembered Items
-                </span>
-                {memoryProfile.memories.length === 0 ? (
-                  <p className="text-xs text-[#786A5E] dark:text-[#8C7A6B] p-3 text-center rounded-xl bg-[#FAF6F0] dark:bg-[#141210]">
-                    No memories saved yet.
-                  </p>
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                  {(['all', 'preference', 'identity', 'goal', 'fact', 'general'] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setMemoryCategoryFilter(cat)}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg capitalize shrink-0 transition-all ${
+                        memoryCategoryFilter === cat
+                          ? 'bg-[#9C4A1A] text-white shadow-xs'
+                          : 'bg-[#FFFFFF] dark:bg-[#1C1917] text-[#786A5E] dark:text-[#A89F91] border border-[#E8D8C8] dark:border-[#2E2722] hover:border-[#9C4A1A]/40'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Memory Items List */}
+              <div className="space-y-2 max-h-52 overflow-y-auto scrollbar-thin scrollbar-thumb-stone-300 dark:scrollbar-thumb-stone-700 pr-1">
+                {filteredMemories.length === 0 ? (
+                  <div className="p-6 text-center rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722]">
+                    <p className="text-xs text-[#786A5E] dark:text-[#8C7A6B]">
+                      {memorySearchQuery || memoryCategoryFilter !== 'all'
+                        ? 'No memories match your filter criteria.'
+                        : 'No memories saved yet. Click Add Memory above to create one.'}
+                    </p>
+                  </div>
                 ) : (
-                  memoryProfile.memories.slice(0, 4).map((mem) => (
+                  filteredMemories.map((mem) => (
                     <div
                       key={mem.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722]"
+                      className="flex items-start justify-between p-3 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] hover:border-[#9C4A1A]/40 transition-colors"
                     >
-                      <div className="min-w-0 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] truncate">{mem.key}</span>
-                          <span className="text-[9px] uppercase px-1 rounded bg-[#FAF6F0] dark:bg-[#26221E] text-[#786A5E] dark:text-[#A89F91]">
+                      <div className="min-w-0 pr-3 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-[#1C1917] dark:text-[#FAF6F0] truncate">
+                            {mem.key}
+                          </span>
+                          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded-md bg-[#FAF6F0] dark:bg-[#26221E] text-[#9C4A1A] dark:text-[#D97706] font-semibold border border-[#E8D8C8]/60 dark:border-[#38302A]">
                             {mem.category}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB] truncate">{mem.value}</p>
+                        <p className="text-xs text-[#574E45] dark:text-[#C5B8AB] break-words">
+                          {mem.value}
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => removeMemory(mem.id)}
-                        className="p-1 text-[#8C7A6B] hover:text-red-600 rounded"
-                        title="Delete"
+                        className="p-1.5 text-[#8C7A6B] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors shrink-0"
+                        title="Delete memory"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
+              {/* Data & Privacy Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-[#E8D8C8] dark:border-[#2E2722]">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleExportMemories}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] text-[11px] font-semibold text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span>Export</span>
+                  </button>
+
+                  <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] text-[11px] font-semibold text-[#574E45] dark:text-[#C5B8AB] hover:text-[#1C1917] dark:hover:text-[#FAF6F0] transition-colors cursor-pointer">
+                    <Upload className="w-3 h-3" />
+                    <span>Import</span>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportMemoriesFile}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {memoryProfile.memories.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAllMemories}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Clear All</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-[#FAF6F0] dark:bg-[#141210] border border-[#E8D8C8] dark:border-[#2E2722] flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706] shrink-0" />
                 <p className="text-[11px] text-[#574E45] dark:text-[#C5B8AB]">
-                  Memories are saved 100% locally on your browser.
+                  All memories are stored private and local in your browser.
                 </p>
               </div>
             </div>
