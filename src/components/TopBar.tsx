@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Menu, ChevronDown, Settings, Cpu, ExternalLink, Sun, Moon, Check, Database } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
@@ -24,6 +24,48 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  const profileContainerRef = useRef<HTMLDivElement>(null);
+  const dropdownContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click anywhere on the page or on Escape key
+  useEffect(() => {
+    if (!isProfileOpen && !isDropdownOpen) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (
+        isProfileOpen &&
+        profileContainerRef.current &&
+        !profileContainerRef.current.contains(target)
+      ) {
+        setIsProfileOpen(false);
+      }
+      if (
+        isDropdownOpen &&
+        dropdownContainerRef.current &&
+        !dropdownContainerRef.current.contains(target)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsProfileOpen(false);
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProfileOpen, isDropdownOpen]);
 
   const initialLetter = (userName?.trim() || 'A').charAt(0).toUpperCase();
 
@@ -51,7 +93,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
         </button>
 
         {/* Brand with Dropdown */}
-        <div className="relative">
+        <div ref={dropdownContainerRef} className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-1.5 px-2.5 py-1 text-base font-semibold text-[#292524] dark:text-[#FAF6F0] hover:bg-[#F5EBE0]/60 dark:hover:bg-[#26221E]/60 rounded-lg transition-colors group"
@@ -59,42 +101,36 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
             <span className="font-serif italic text-2xl sm:text-[28px] font-normal text-[#1C1917] dark:text-[#FAF6F0] tracking-tight leading-none drop-shadow-xs">
               Zoya
             </span>
-            <ChevronDown className="w-4 h-4 text-[#786A5E] dark:text-[#A89F91] group-hover:text-[#292524] dark:group-hover:text-[#FAF6F0] transition-transform duration-200" />
+            <ChevronDown className={`w-4 h-4 text-[#786A5E] dark:text-[#A89F91] group-hover:text-[#292524] dark:group-hover:text-[#FAF6F0] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Model selection dropdown */}
           {isDropdownOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setIsDropdownOpen(false)}
-              />
-              <div className="absolute left-0 mt-2 w-64 p-2 bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] rounded-2xl shadow-xl shadow-stone-300/40 dark:shadow-black/60 z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-2 text-xs font-semibold text-[#786A5E] dark:text-[#A89F91] border-b border-[#F5EBE0] dark:border-[#26221E]">
-                  Active Intelligence Engine
-                </div>
-                <div className="px-3 py-2.5 my-1 bg-[#FAF6F0] dark:bg-[#26221E] rounded-xl border border-[#E8D8C8] dark:border-[#38302A]">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
-                    <span className="font-bold text-xs text-[#1C1917] dark:text-[#FAF6F0] truncate">{providerDisplayName}</span>
-                  </div>
-                  <p className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B] mt-0.5">
-                    {providerConfig?.provider === 'default'
-                      ? 'Groq Cloud LPU (Free Tier)'
-                      : 'BYOK Custom API Key Active'}
-                  </p>
-                </div>
-
-                <Link
-                  href="/settings"
-                  onClick={() => setIsDropdownOpen(false)}
-                  className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#9C4A1A] dark:text-[#D97706] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] rounded-xl transition-colors mt-1"
-                >
-                  <span>Configure Providers & Models</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
+            <div className="absolute left-0 mt-2 w-64 p-2 bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] rounded-2xl shadow-xl shadow-stone-300/40 dark:shadow-black/60 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-2 text-xs font-semibold text-[#786A5E] dark:text-[#A89F91] border-b border-[#F5EBE0] dark:border-[#26221E]">
+                Active Intelligence Engine
               </div>
-            </>
+              <div className="px-3 py-2.5 my-1 bg-[#FAF6F0] dark:bg-[#26221E] rounded-xl border border-[#E8D8C8] dark:border-[#38302A]">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-[#9C4A1A] dark:text-[#D97706]" />
+                  <span className="font-bold text-xs text-[#1C1917] dark:text-[#FAF6F0] truncate">{providerDisplayName}</span>
+                </div>
+                <p className="text-[10px] text-[#786A5E] dark:text-[#8C7A6B] mt-0.5">
+                  {providerConfig?.provider === 'default'
+                    ? 'Groq Cloud LPU (Free Tier)'
+                    : 'BYOK Custom API Key Active'}
+                </p>
+              </div>
+
+              <Link
+                href="/settings"
+                onClick={() => setIsDropdownOpen(false)}
+                className="flex items-center justify-between px-3 py-2 text-xs font-semibold text-[#9C4A1A] dark:text-[#D97706] hover:bg-[#FAF6F0] dark:hover:bg-[#26221E] rounded-xl transition-colors mt-1"
+              >
+                <span>Configure Providers & Models</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -102,7 +138,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
       {/* Right side: User Profile with Merged Theme Switcher */}
       <div className="flex items-center gap-2">
         {/* Profile Avatar */}
-        <div className="relative">
+        <div ref={profileContainerRef} className="relative">
           <button
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="relative flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-[#7C3512] via-[#9C4A1A] to-[#B85D19] p-[1.5px] hover:scale-105 transition-transform shadow-md focus:outline-none focus:ring-2 focus:ring-[#9C4A1A]/40"
@@ -117,12 +153,7 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
 
           {/* Profile & Theme Popover Menu */}
           {isProfileOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                onClick={() => setIsProfileOpen(false)}
-              />
-              <div className="absolute right-0 mt-2 w-64 p-2.5 bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] rounded-2xl shadow-2xl shadow-stone-400/30 dark:shadow-black/70 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-64 p-2.5 bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E8D8C8] dark:border-[#2E2722] rounded-2xl shadow-2xl shadow-stone-400/30 dark:shadow-black/70 z-50 animate-in fade-in zoom-in-95 duration-150">
                 {/* User Info Header */}
                 <div className="px-3 py-2.5 bg-[#FAF6F0] dark:bg-[#26221E] rounded-xl border border-[#E8D8C8] dark:border-[#38302A] mb-2">
                   <div className="flex items-center justify-between">
@@ -224,7 +255,6 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
                   </Link>
                 </div>
               </div>
-            </>
           )}
         </div>
       </div>
