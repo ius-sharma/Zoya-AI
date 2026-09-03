@@ -54,6 +54,7 @@ interface ChatContextType {
   isStreaming: boolean;
   stopGeneration: () => void;
   sendMessage: (content: string, quickAction?: string) => Promise<string | null>;
+  editAndResendMessage: (messageId: string, newContent: string) => Promise<string | null>;
   createNewChat: () => void;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
@@ -545,86 +546,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
-  const sendMessage = useCallback(
-    async (content: string, quickAction?: string): Promise<string | null> => {
-      if (!content.trim()) return null;
-
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      const userMsgText = content.trim();
-      const userMessage: Message = {
-        id: 'msg_u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
-        role: 'user',
-        content: userMsgText,
-        createdAt: Date.now(),
-      };
-
-      const assistantMsgId = 'msg_a_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
-      const assistantMessage: Message = {
-        id: assistantMsgId,
-        role: 'assistant',
-        content: '',
-        createdAt: Date.now(),
-        isStreaming: true,
-      };
-
-      let currentConvoId = activeId;
-      let targetConvo = conversations.find((c) => c.id === currentConvoId);
-
-      if (!targetConvo) {
-        targetConvo = createNewConversation();
-        currentConvoId = targetConvo.id;
-        setConversations((prev) => [targetConvo!, ...prev]);
-        setActiveId(currentConvoId);
-      }
-
-      // Compute new title if this is the first message
-      const shouldUpdateTitle = targetConvo.messages.length === 0;
-      const newTitle = shouldUpdateTitle ? generateConversationTitle(userMsgText) : targetConvo.title;
-
-      // Update state with user message & empty assistant placeholder
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id === currentConvoId) {
-            return {
-              ...c,
-              title: newTitle,
-              updatedAt: Date.now(),
-              messages: [...c.messages, userMessage, assistantMessage],
-            };
-          }
-          return c;
-        })
-      );
-
-      setIsStreaming(true);
-
-      // Collect payload (strictly non-empty messages for LLM compatibility)
-      const historyToSend = [...targetConvo.messages, userMessage]
-        .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
-        .map((m) => ({
-          role: m.role,
-          content: m.content.trim(),
-        }));
-
-      // Client-side heuristics: detect if user explicitly stated their name or preferences
-      const detectedFacts = detectUserExplicitFacts(userMsgText);
-      if (detectedFacts.length > 0) {
-        let currentProfile = memoryProfile;
-        for (const fact of detectedFacts) {
-          const { profile } = addOrUpdateMemoryItem(currentProfile, fact.key, fact.value, fact.category);
-          currentProfile = profile;
-          if (fact.isNameUpdate && fact.value) {
-            setUserName(fact.value);
-          }
-        }
-        setMemoryProfile(currentProfile);
-      }
-
+  const executeStreamRequest = useCallback(
+    async ({
+      currentConvoId,
+      assistantMsgId,
+      historyToSend,
+      quickAction,
+      controller,
+    }: {
+      currentConvoId: string;
+      assistantMsgId: string;
+      historyToSend: { role: string; content: string }[];
+      quickAction?: string;
+      controller: AbortController;
+    }): Promise<string | null> => {
       try {
         const response = await fetch('/api/chat', {
           method: 'POST',
@@ -661,10 +596,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         // Helper: parse <think>...</think> and strip <memory_save .../> tags from accumulated raw text
         const parseThinkAndMemoryBlock = (raw: string): { thought: string; content: string } => {
-          // 1. First extract and remove any memory_save tags from raw stream
           const { cleanContent: cleanRaw } = extractMemoryTags(raw);
-
-          // 2. Check for <think>...</think> block
           const thinkOpenTag = '<think>';
           const thinkCloseTag = '</think>';
           const openIdx = cleanRaw.indexOf(thinkOpenTag);
@@ -673,12 +605,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
           const closeIdx = cleanRaw.indexOf(thinkCloseTag);
           if (closeIdx === -1) {
-            // Still streaming inside <think> block - hide everything after <think>
             const beforeThink = cleanRaw.substring(0, openIdx).trim();
             const insideThink = cleanRaw.substring(openIdx + thinkOpenTag.length).trim();
             return { thought: insideThink, content: beforeThink };
           }
-          // Both tags found - extract thought and clean content
           const thoughtText = cleanRaw.substring(openIdx + thinkOpenTag.length, closeIdx).trim();
           const afterThink = cleanRaw.substring(closeIdx + thinkCloseTag.length).trim();
           const beforeThink = cleanRaw.substring(0, openIdx).trim();
@@ -695,7 +625,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           const parsed = parseThinkAndMemoryBlock(accumulatedText);
 
-          // Update active conversation assistant message in-place
           setConversations((prev) =>
             prev.map((c) => {
               if (c.id === currentConvoId) {
@@ -719,7 +648,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           );
         }
 
-        // Finalize streaming: extract any emitted memories from final accumulated text
         const { extracted: newMemories } = extractMemoryTags(accumulatedText);
         if (newMemories.length > 0) {
           setMemoryProfile((prev) => {
@@ -817,7 +745,182 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }
       }
     },
-    [activeId, conversations, userName, memoryProfile, providerConfig, ragEnabled]
+    [userName, memoryProfile, providerConfig, ragEnabled]
+  );
+
+  const sendMessage = useCallback(
+    async (content: string, quickAction?: string): Promise<string | null> => {
+      if (!content.trim()) return null;
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const userMsgText = content.trim();
+      const userMessage: Message = {
+        id: 'msg_u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+        role: 'user',
+        content: userMsgText,
+        createdAt: Date.now(),
+      };
+
+      const assistantMsgId = 'msg_a_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+      const assistantMessage: Message = {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        isStreaming: true,
+      };
+
+      let currentConvoId = activeId;
+      let targetConvo = conversations.find((c) => c.id === currentConvoId);
+
+      if (!targetConvo) {
+        targetConvo = createNewConversation();
+        currentConvoId = targetConvo.id;
+        setConversations((prev) => [targetConvo!, ...prev]);
+        setActiveId(currentConvoId);
+      }
+
+      // Compute new title if this is the first message
+      const shouldUpdateTitle = targetConvo.messages.length === 0;
+      const newTitle = shouldUpdateTitle ? generateConversationTitle(userMsgText) : targetConvo.title;
+
+      // Update state with user message & empty assistant placeholder
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvoId) {
+            return {
+              ...c,
+              title: newTitle,
+              updatedAt: Date.now(),
+              messages: [...c.messages, userMessage, assistantMessage],
+            };
+          }
+          return c;
+        })
+      );
+
+      setIsStreaming(true);
+
+      // Collect payload (strictly non-empty messages for LLM compatibility)
+      const historyToSend = [...targetConvo.messages, userMessage]
+        .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
+        .map((m) => ({
+          role: m.role,
+          content: m.content.trim(),
+        }));
+
+      // Client-side heuristics: detect if user explicitly stated their name or preferences
+      const detectedFacts = detectUserExplicitFacts(userMsgText);
+      if (detectedFacts.length > 0) {
+        let currentProfile = memoryProfile;
+        for (const fact of detectedFacts) {
+          const { profile } = addOrUpdateMemoryItem(currentProfile, fact.key, fact.value, fact.category);
+          currentProfile = profile;
+          if (fact.isNameUpdate && fact.value) {
+            setUserName(fact.value);
+          }
+        }
+        setMemoryProfile(currentProfile);
+      }
+
+      return executeStreamRequest({
+        currentConvoId: currentConvoId!,
+        assistantMsgId,
+        historyToSend,
+        quickAction,
+        controller,
+      });
+    },
+    [activeId, conversations, memoryProfile, executeStreamRequest]
+  );
+
+  const editAndResendMessage = useCallback(
+    async (messageId: string, newContent: string): Promise<string | null> => {
+      if (!newContent.trim()) return null;
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const userMsgText = newContent.trim();
+      const currentConvoId = activeId;
+      const targetConvo = conversations.find((c) => c.id === currentConvoId);
+      if (!targetConvo || !currentConvoId) return null;
+
+      const msgIndex = targetConvo.messages.findIndex((m) => m.id === messageId);
+      if (msgIndex === -1) return null;
+
+      // Retain conversation history prior to the edited prompt
+      const previousMessages = targetConvo.messages.slice(0, msgIndex);
+      const updatedUserMessage: Message = {
+        ...targetConvo.messages[msgIndex],
+        content: userMsgText,
+        createdAt: Date.now(),
+      };
+
+      const assistantMsgId = 'msg_a_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+      const assistantMessage: Message = {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        isStreaming: true,
+      };
+
+      // Truncate following messages & attach updated message + new streaming assistant placeholder
+      const newTitle = msgIndex === 0 ? generateConversationTitle(userMsgText) : targetConvo.title;
+
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvoId) {
+            return {
+              ...c,
+              title: newTitle,
+              updatedAt: Date.now(),
+              messages: [...previousMessages, updatedUserMessage, assistantMessage],
+            };
+          }
+          return c;
+        })
+      );
+
+      setIsStreaming(true);
+
+      const historyToSend = [...previousMessages, updatedUserMessage]
+        .filter((m) => m && typeof m.content === 'string' && m.content.trim().length > 0)
+        .map((m) => ({
+          role: m.role,
+          content: m.content.trim(),
+        }));
+
+      const detectedFacts = detectUserExplicitFacts(userMsgText);
+      if (detectedFacts.length > 0) {
+        let currentProfile = memoryProfile;
+        for (const fact of detectedFacts) {
+          const { profile } = addOrUpdateMemoryItem(currentProfile, fact.key, fact.value, fact.category);
+          currentProfile = profile;
+          if (fact.isNameUpdate && fact.value) {
+            setUserName(fact.value);
+          }
+        }
+        setMemoryProfile(currentProfile);
+      }
+
+      return executeStreamRequest({
+        currentConvoId,
+        assistantMsgId,
+        historyToSend,
+        controller,
+      });
+    },
+    [activeId, conversations, memoryProfile, executeStreamRequest]
   );
 
   return (
@@ -838,6 +941,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         isStreaming,
         stopGeneration,
         sendMessage,
+        editAndResendMessage,
         createNewChat,
         selectConversation,
         deleteConversation,
