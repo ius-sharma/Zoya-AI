@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Copy, Check, ChevronDown, ChevronUp, BrainCircuit, Sparkles } from 'lucide-react';
+import { Copy, Check, Sparkles } from 'lucide-react';
 import { Message } from '@/types/chat';
 import { SourceCitations } from './SourceCitations';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -12,7 +12,6 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const [copied, setCopied] = useState(false);
-  const [isThoughtOpen, setIsThoughtOpen] = useState(true);
 
   const isUser = message.role === 'user';
 
@@ -65,27 +64,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           </button>
         )}
       </div>
-
-      {/* Thought reasoning accordion (if Think mode was active) */}
-      {message.thought && (
-        <div className="mb-3.5 rounded-2xl bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E0D0BE] dark:border-[#2E2722] overflow-hidden shadow-sm">
-          <button
-            onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-xs font-semibold text-[#7C3512] dark:text-[#E8D8C8] bg-[#F5EBE0]/70 dark:bg-[#26221E]/70 hover:bg-[#F5EBE0] dark:hover:bg-[#26221E] transition-colors"
-          >
-            <div className="flex items-center gap-1.5">
-              <BrainCircuit className="w-3.5 h-3.5 text-[#9C4A1A] dark:text-[#D97706]" />
-              <span>Thought Process</span>
-            </div>
-            {isThoughtOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-          {isThoughtOpen && (
-            <div className="p-3.5 text-xs font-mono text-[#574E45] dark:text-[#C5B8AB] whitespace-pre-wrap border-t border-[#E8D8C8] dark:border-[#2E2722] bg-[#FAF6F0] dark:bg-[#141210] leading-relaxed">
-              {message.thought}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Rich Markdown Output */}
       <div className="pl-7 pr-2 font-sans">
