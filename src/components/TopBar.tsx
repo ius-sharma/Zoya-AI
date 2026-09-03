@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, ChevronDown, Settings, Cpu, ExternalLink, Sun, Moon, Check, Database } from 'lucide-react';
+import { Menu, ChevronDown, Settings, Cpu, ExternalLink, Sun, Moon, Check, Database, Search } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface TopBarProps {
@@ -20,6 +20,9 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
     setIsVaultOpen,
     documents,
     ragEnabled,
+    openSearch,
+    isSearchOpen,
+    activeConversation,
   } = useChat();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -136,7 +139,24 @@ export const TopBar: React.FC<TopBarProps> = ({ isVoiceMode = false }) => {
       </div>
 
       {/* Right side: User Profile with Merged Theme Switcher */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* In-Chat Search Trigger Button */}
+        {activeConversation && activeConversation.messages && activeConversation.messages.length > 0 && (
+          <button
+            type="button"
+            onClick={openSearch}
+            className={`p-1.5 rounded-full transition-all duration-200 cursor-pointer ${
+              isSearchOpen
+                ? 'text-[#9C4A1A] dark:text-[#D97706] bg-[#9C4A1A]/10 dark:bg-[#D97706]/15 ring-1 ring-[#9C4A1A]/30'
+                : 'text-[#786A5E] dark:text-[#A89F91] hover:text-[#292524] dark:hover:text-[#FAF6F0] hover:bg-[#F5EBE0] dark:hover:bg-[#26221E]'
+            }`}
+            title="Search in chat (Ctrl+F)"
+            aria-label="Search in chat"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Profile Avatar */}
         <div ref={profileContainerRef} className="relative">
           <button

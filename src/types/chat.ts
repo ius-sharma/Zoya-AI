@@ -48,6 +48,8 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   messages: Message[];
+  isPinned?: boolean;
+  tag?: string;
 }
 
 export interface ChatMode {

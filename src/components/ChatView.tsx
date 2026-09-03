@@ -4,10 +4,21 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Square } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { InputBar } from './InputBar';
+import { InChatSearchBar } from './InChatSearchBar';
 import { useChat } from '@/context/ChatContext';
 
 export const ChatView: React.FC = () => {
-  const { activeConversation, sendMessage, isStreaming, stopGeneration, userName, memoryProfile } = useChat();
+  const {
+    activeConversation,
+    sendMessage,
+    isStreaming,
+    stopGeneration,
+    userName,
+    memoryProfile,
+    isSearchOpen,
+    openSearch,
+    closeSearch,
+  } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [greetingText, setGreetingText] = useState<string>('Welcome, Ayush');
@@ -58,6 +69,19 @@ export const ChatView: React.FC = () => {
     setGreetingText(finalGreeting);
   }, [activeConversation?.id, userName, memoryProfile]);
 
+  // Listen for Ctrl+F / Cmd+F to trigger in-chat search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        if (!isHeroEmpty) {
+          e.preventDefault();
+          openSearch();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isHeroEmpty, openSearch]);
 
   const handleSend = (text: string) => {
     sendMessage(text);
@@ -67,6 +91,15 @@ export const ChatView: React.FC = () => {
     <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden relative bg-[#FAF6F0] dark:bg-[#12100E] transition-colors duration-200">
       {/* Subtle warm rust ambient background glow */}
       <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#9C4A1A]/5 dark:bg-[#B85D19]/10 blur-[140px] rounded-full" />
+
+      {/* In-Chat Search Bar with Highlighter */}
+      {!isHeroEmpty && (
+        <InChatSearchBar
+          containerRef={scrollContainerRef}
+          isOpen={isSearchOpen}
+          onClose={closeSearch}
+        />
+      )}
 
       {/* Main Dynamic Viewport Container */}
       <div

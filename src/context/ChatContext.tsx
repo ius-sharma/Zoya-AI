@@ -58,6 +58,12 @@ interface ChatContextType {
   createNewChat: () => void;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => void;
+  togglePinConversation: (id: string) => void;
+  setConversationTag: (id: string, tag?: string) => void;
+  isSearchOpen: boolean;
+  setIsSearchOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openSearch: () => void;
+  closeSearch: () => void;
   isSidebarOpen: boolean;
   setIsSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   toggleSidebar: () => void;
@@ -108,6 +114,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [ragEnabled, setRagEnabledState] = useState<boolean>(true);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [isUploadingDocs, setIsUploadingDocs] = useState<boolean>(false);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
 
   const [userName, setUserName] = useState<string>('Ayush');
   const [memoryProfile, setMemoryProfile] = useState<MemoryProfile>(DEFAULT_MEMORY_PROFILE);
@@ -546,6 +553,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsSidebarOpen((prev) => !prev);
   }, []);
 
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+  }, []);
+
+  const togglePinConversation = useCallback((id: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, isPinned: !c.isPinned } : c))
+    );
+  }, []);
+
+  const setConversationTag = useCallback((id: string, tag?: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, tag: tag || undefined } : c))
+    );
+  }, []);
+
   const executeStreamRequest = useCallback(
     async ({
       currentConvoId,
@@ -945,6 +972,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         createNewChat,
         selectConversation,
         deleteConversation,
+        togglePinConversation,
+        setConversationTag,
+        isSearchOpen,
+        setIsSearchOpen,
+        openSearch,
+        closeSearch,
         isSidebarOpen,
         setIsSidebarOpen,
         toggleSidebar,
