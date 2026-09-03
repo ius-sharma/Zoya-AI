@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, MessageSquare, Trash2, X, Clock, Settings, Database, Brain } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 import { formatRelativeTime } from '@/utils/storage';
@@ -21,6 +21,21 @@ export const Sidebar: React.FC = () => {
     setIsMemoryModalOpen,
   } = useChat();
 
+  // Close sidebar on Escape key press
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSidebarOpen, setIsSidebarOpen]);
 
   // Only display conversations that have actual messages sent (ignoring empty drafts)
   const historyConversations = conversations.filter(
@@ -29,11 +44,12 @@ export const Sidebar: React.FC = () => {
 
   return (
     <>
-      {/* Backdrop for mobile */}
+      {/* Backdrop overlay for outside click to close */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
+          aria-label="Close sidebar backdrop"
         />
       )}
 
@@ -58,7 +74,10 @@ export const Sidebar: React.FC = () => {
         {/* New Chat Button */}
         <div className="p-3">
           <button
-            onClick={createNewChat}
+            onClick={() => {
+              createNewChat();
+              setIsSidebarOpen(false);
+            }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#9C4A1A] via-[#B85D19] to-[#7C3512] hover:from-[#B85D19] hover:to-[#8B3A0F] text-white text-sm font-semibold rounded-xl shadow-md shadow-[#9C4A1A]/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             <Plus className="w-4 h-4" />
@@ -86,7 +105,10 @@ export const Sidebar: React.FC = () => {
               return (
                 <div
                   key={convo.id}
-                  onClick={() => selectConversation(convo.id)}
+                  onClick={() => {
+                    selectConversation(convo.id);
+                    setIsSidebarOpen(false);
+                  }}
                   className={`group relative flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
                     isActive
                       ? 'bg-[#FFFFFF] dark:bg-[#241F1C] text-[#7C3512] dark:text-[#FAF6F0] border border-[#E0D0BE] dark:border-[#38302A] shadow-sm font-semibold'
