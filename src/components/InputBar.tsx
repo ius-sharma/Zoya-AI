@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, ArrowUp, Paperclip } from 'lucide-react';
+import { Mic, ArrowUp, Paperclip, Square } from 'lucide-react';
 import { useChat } from '@/context/ChatContext';
 
 interface InputBarProps {
@@ -17,7 +17,7 @@ const ROTATING_PLACEHOLDERS = [
 ];
 
 export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = false }) => {
-  const { openVoiceMode, isStreaming, activeId, setIsVaultOpen, documents, ragEnabled } = useChat();
+  const { openVoiceMode, isStreaming, stopGeneration, activeId, setIsVaultOpen, documents, ragEnabled } = useChat();
   const [input, setInput] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -51,10 +51,28 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
     return () => clearInterval(interval);
   }, [input]);
 
+  // Global Escape key listener to stop generation instantly
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isStreaming) {
+        stopGeneration();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isStreaming, stopGeneration]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Escape' && isStreaming) {
+      e.preventDefault();
+      stopGeneration();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit();
+      if (!isStreaming) {
+        handleSubmit();
+      }
     }
   };
 
@@ -179,49 +197,61 @@ export const InputBar: React.FC<InputBarProps> = ({ onSendMessage, disabled = fa
               </div>
             </button>
 
-            {/* 2. Dedicated Send Arrow Button */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!isHasText || disabled || isStreaming}
-              className={`relative flex items-center justify-center w-8 h-8 rounded-full p-[1.5px] transition-all duration-300 ease-out overflow-hidden focus:outline-none ${
-                isHasText
-                  ? 'bg-transparent shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 hover:scale-105 active:scale-95 cursor-pointer'
-                  : 'bg-[#F5EBE0]/80 dark:bg-[#26221E]/80 shadow-none cursor-not-allowed opacity-60'
-              }`}
-              title={isHasText ? 'Send message (Enter)' : 'Type to send'}
-              aria-label="Send message"
-            >
-              {/* Luminous 3D Glass Sphere Layer (Fades smoothly on typing) */}
-              <div
-                className={`absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_28%,#ffffff_0%,#fff5d6_20%,#fde047_45%,#f59e0b_70%,#d97706_100%)] shadow-inner transition-all duration-300 ease-out pointer-events-none ${
-                  isHasText ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-                }`}
-              />
-              {/* Internal Caustic Glint */}
-              <div
-                className={`absolute inset-[1.5px] rounded-full bg-[radial-gradient(circle_at_70%_75%,rgba(255,255,255,0.6)_0%,rgba(253,224,71,0.35)_35%,transparent_70%)] transition-opacity duration-300 pointer-events-none ${
-                  isHasText ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-              {/* Top-Left Curved Glass Sheen */}
-              <div
-                className={`absolute top-[2.5px] left-[5px] w-3 h-1.5 rounded-full bg-gradient-to-b from-white/95 to-white/20 -rotate-[35deg] blur-[0.3px] transition-opacity duration-300 pointer-events-none ${
-                  isHasText ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-
-              {/* Send Arrow Icon */}
-              <div
-                className={`relative z-10 flex items-center justify-center transition-all duration-300 ${
-                  isHasText
-                    ? 'text-[#7C3512] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] scale-100'
-                    : 'text-[#BFAF9E] dark:text-[#574E45] scale-95'
-                }`}
+            {/* 2. Dedicated Send Arrow or Stop Generation Button */}
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={stopGeneration}
+                className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#9C4A1A] hover:bg-[#B85D19] dark:bg-[#D97706] dark:hover:bg-[#B45309] text-white shadow-md shadow-[#9C4A1A]/30 hover:shadow-lg hover:shadow-[#9C4A1A]/50 hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-[#9C4A1A]/30 dark:ring-[#D97706]/40 transition-all duration-200 focus:outline-none"
+                title="Stop generating (Esc)"
+                aria-label="Stop generating"
               >
-                <ArrowUp className="w-4 h-4 font-bold stroke-[2.8]" />
-              </div>
-            </button>
+                <Square className="w-3 h-3 fill-current text-white" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!isHasText || disabled}
+                className={`relative flex items-center justify-center w-8 h-8 rounded-full p-[1.5px] transition-all duration-300 ease-out overflow-hidden focus:outline-none ${
+                  isHasText
+                    ? 'bg-transparent shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 hover:scale-105 active:scale-95 cursor-pointer'
+                    : 'bg-[#F5EBE0]/80 dark:bg-[#26221E]/80 shadow-none cursor-not-allowed opacity-60'
+                }`}
+                title={isHasText ? 'Send message (Enter)' : 'Type to send'}
+                aria-label="Send message"
+              >
+                {/* Luminous 3D Glass Sphere Layer (Fades smoothly on typing) */}
+                <div
+                  className={`absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_28%,#ffffff_0%,#fff5d6_20%,#fde047_45%,#f59e0b_70%,#d97706_100%)] shadow-inner transition-all duration-300 ease-out pointer-events-none ${
+                    isHasText ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
+                  }`}
+                />
+                {/* Internal Caustic Glint */}
+                <div
+                  className={`absolute inset-[1.5px] rounded-full bg-[radial-gradient(circle_at_70%_75%,rgba(255,255,255,0.6)_0%,rgba(253,224,71,0.35)_35%,transparent_70%)] transition-opacity duration-300 pointer-events-none ${
+                    isHasText ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+                {/* Top-Left Curved Glass Sheen */}
+                <div
+                  className={`absolute top-[2.5px] left-[5px] w-3 h-1.5 rounded-full bg-gradient-to-b from-white/95 to-white/20 -rotate-[35deg] blur-[0.3px] transition-opacity duration-300 pointer-events-none ${
+                    isHasText ? 'opacity-100' : 'opacity-0'
+                  }`}
+                />
+
+                {/* Send Arrow Icon */}
+                <div
+                  className={`relative z-10 flex items-center justify-center transition-all duration-300 ${
+                    isHasText
+                      ? 'text-[#7C3512] drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] scale-100'
+                      : 'text-[#BFAF9E] dark:text-[#574E45] scale-95'
+                  }`}
+                >
+                  <ArrowUp className="w-4 h-4 font-bold stroke-[2.8]" />
+                </div>
+              </button>
+            )}
           </div>
         </div>
       </div>

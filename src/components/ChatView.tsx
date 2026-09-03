@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
+import { Square } from 'lucide-react';
 import { MessageBubble } from './MessageBubble';
 import { InputBar } from './InputBar';
 import { useChat } from '@/context/ChatContext';
 
 export const ChatView: React.FC = () => {
-  const { activeConversation, sendMessage, isStreaming, userName, memoryProfile } = useChat();
+  const { activeConversation, sendMessage, isStreaming, stopGeneration, userName, memoryProfile } = useChat();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [greetingText, setGreetingText] = useState<string>('Welcome, Ayush');
@@ -105,7 +106,24 @@ export const ChatView: React.FC = () => {
               : 'bg-gradient-to-t from-[#FAF6F0] via-[#FAF6F0]/95 dark:from-[#12100E] dark:via-[#12100E]/95 to-transparent pt-2 pb-1'
           }`}
         >
-          <InputBar onSendMessage={handleSend} disabled={isStreaming} />
+          {/* Floating Stop Generating Pill during active stream */}
+          {isStreaming && (
+            <div className="flex justify-center mb-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <button
+                type="button"
+                onClick={stopGeneration}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#FFFFFF] dark:bg-[#1C1917] border border-[#E0D0BE] dark:border-[#382F27] text-[#7C3512] dark:text-[#E8D8C8] shadow-md shadow-stone-300/30 dark:shadow-black/40 hover:bg-[#F5EBE0] dark:hover:bg-[#26221E] hover:border-[#9C4A1A]/40 transition-all cursor-pointer group active:scale-95"
+                title="Stop generation (Esc)"
+              >
+                <Square className="w-2.5 h-2.5 fill-current text-[#9C4A1A] dark:text-[#D97706] group-hover:scale-110 transition-transform" />
+                <span>Stop generating</span>
+                <kbd className="hidden sm:inline-block ml-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#FAF6F0] dark:bg-[#2A241F] text-[#786A5E] dark:text-[#A89F91] border border-[#E8D8C8] dark:border-[#382F27]">
+                  Esc
+                </kbd>
+              </button>
+            </div>
+          )}
+          <InputBar onSendMessage={handleSend} />
         </div>
       </div>
     </div>

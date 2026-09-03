@@ -52,6 +52,7 @@ interface ChatContextType {
   closeVoiceMode: () => void;
   setVoiceStatus: (status: VoiceStatus) => void;
   isStreaming: boolean;
+  stopGeneration: () => void;
   sendMessage: (content: string, quickAction?: string) => Promise<string | null>;
   createNewChat: () => void;
   selectConversation: (id: string) => void;
@@ -130,6 +131,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     aiResponse: '',
     isMuted: false,
   });
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+  }, []);
 
   const applyTheme = useCallback((selectedTheme: ThemeMode) => {
     if (typeof window === 'undefined') return;
@@ -538,6 +549,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     async (content: string, quickAction?: string): Promise<string | null> => {
       if (!content.trim()) return null;
 
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       const userMsgText = content.trim();
       const userMessage: Message = {
         id: 'msg_u_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6),
@@ -612,6 +629,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: historyToSend,
             userName,
@@ -743,7 +761,33 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
         setIsStreaming(false);
         return finalParsed.content;
-      } catch (err) {
+      } catch (err: unknown) {
+        const errorObj = err as { name?: string };
+        // If aborted by user (stop generation clicked), retain whatever was already generated
+        if (errorObj?.name === 'AbortError' || controller.signal.aborted) {
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id === currentConvoId) {
+                return {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === assistantMsgId
+                      ? {
+                          ...m,
+                          content: m.content || '(Response stopped)',
+                          isStreaming: false,
+                        }
+                      : m
+                  ),
+                };
+              }
+              return c;
+            })
+          );
+          setIsStreaming(false);
+          return null;
+        }
+
         console.error('Error sending message:', err);
         const fallbackText = "Arre dost, connection me thodi issue aayi. Ek baar refresh karke dubara bhejo!";
         setConversations((prev) =>
@@ -767,6 +811,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         );
         setIsStreaming(false);
         return fallbackText;
+      } finally {
+        if (abortControllerRef.current === controller) {
+          abortControllerRef.current = null;
+        }
       }
     },
     [activeId, conversations, userName, memoryProfile, providerConfig, ragEnabled]
@@ -788,6 +836,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         closeVoiceMode,
         setVoiceStatus,
         isStreaming,
+        stopGeneration,
         sendMessage,
         createNewChat,
         selectConversation,
